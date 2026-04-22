@@ -42,18 +42,18 @@ service cloud.firestore {
 
       allow create: if isSignedIn()
         && isValidId(taskId)
-        && isValidSupportTask(incoming())
-        && incoming().createdAt == request.time.toMillis()
-        && incoming().updatedAt == request.time.toMillis();
+        && isValidSupportTask(incoming());
 
       allow update: if isSignedIn()
         && isValidId(taskId)
         && isValidSupportTask(incoming())
-        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+            'date', 'province', 'district', 'municipal', 'details',
+            'organization', 'contactPerson', 'contactNumber', 'status', 'updatedAt'
+        ])
         && incoming().status in ['Pending', 'Ongoing', 'Resolved']
         && incoming().ownerId == existing().ownerId
-        && incoming().createdAt == existing().createdAt
-        && incoming().updatedAt == request.time.toMillis();
+        && incoming().createdAt == existing().createdAt;
 
       // Deletions are restricted to the owner
       allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;

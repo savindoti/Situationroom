@@ -16,6 +16,7 @@ interface SupportContextType {
   login: () => void;
   logout: () => void;
   addTask: (task: Omit<SupportTask, 'id' | 'createdAt' | 'updatedAt' | 'ownerId'>) => void;
+  updateTask: (id: string, updates: Partial<Omit<SupportTask, 'id' | 'createdAt' | 'ownerId'>>) => void;
   updateTaskStatus: (id: string, status: SupportStatus) => void;
   deleteTask: (id: string) => void;
 }
@@ -96,7 +97,7 @@ export const SupportProvider = ({ children }: { children: ReactNode }) => {
           }
         }
       });
-    }, 10000);
+    }, 5000);
     return () => clearInterval(interval);
   }, [tasks]);
 
@@ -117,6 +118,19 @@ export const SupportProvider = ({ children }: { children: ReactNode }) => {
       toast.success('Support task logged successfully.');
     } catch (e: any) {
       toast.error('Error logging task: ' + e.message);
+    }
+  };
+
+  const updateTask = async (id: string, updates: Partial<Omit<SupportTask, 'id' | 'createdAt' | 'ownerId'>>) => {
+    if (!user) return;
+    try {
+      await updateDoc(doc(db, 'tasks', id), {
+        ...updates,
+        updatedAt: Date.now()
+      });
+      toast.success('Task updated successfully.');
+    } catch (e: any) {
+      toast.error('Error updating task: ' + e.message);
     }
   };
 
@@ -144,7 +158,7 @@ export const SupportProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <SupportContext.Provider value={{ tasks, user, loading, startDate, endDate, setStartDate, setEndDate, login, logout, addTask, updateTaskStatus, deleteTask }}>
+    <SupportContext.Provider value={{ tasks, user, loading, startDate, endDate, setStartDate, setEndDate, login, logout, addTask, updateTask, updateTaskStatus, deleteTask }}>
       {children}
     </SupportContext.Provider>
   );

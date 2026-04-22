@@ -1,20 +1,20 @@
 import { useState, FormEvent, useEffect } from 'react';
 import { useSupport } from '../context/SupportContext';
-import { SupportStatus } from '../types';
+import { SupportStatus, SupportTask } from '../types';
 import { provinces, getDistrictsByProvince, getMunicipalsByDistrict } from '../data/locations';
 
-export function SupportModal({ onClose }: { onClose: () => void }) {
-  const { addTask } = useSupport();
+export function SupportModal({ onClose, editingTask = null }: { onClose: () => void; editingTask?: SupportTask | null }) {
+  const { addTask, updateTask } = useSupport();
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split('T')[0],
-    province: '',
-    district: '',
-    municipal: '',
-    details: '',
-    organization: '',
-    contactPerson: '',
-    contactNumber: '',
-    status: 'Pending' as SupportStatus
+    date: editingTask ? editingTask.date : new Date().toISOString().split('T')[0],
+    province: editingTask ? editingTask.province : '',
+    district: editingTask ? editingTask.district : '',
+    municipal: editingTask ? editingTask.municipal : '',
+    details: editingTask ? editingTask.details : '',
+    organization: editingTask ? editingTask.organization : '',
+    contactPerson: editingTask ? editingTask.contactPerson : '',
+    contactNumber: editingTask ? editingTask.contactNumber : '',
+    status: editingTask ? editingTask.status : 'Pending' as SupportStatus
   });
 
   const [availableDistricts, setAvailableDistricts] = useState<string[]>([]);
@@ -56,7 +56,11 @@ export function SupportModal({ onClose }: { onClose: () => void }) {
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    addTask(formData);
+    if (editingTask) {
+      updateTask(editingTask.id, formData);
+    } else {
+      addTask(formData);
+    }
     onClose();
   };
 
@@ -64,13 +68,13 @@ export function SupportModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
       <div className="bg-[#fdfaf6] dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden border border-[#e5e0d8] dark:border-slate-700 transition-colors">
          <div className="p-8">
-            <h2 className="text-3xl font-serif font-bold text-[#354060] dark:text-slate-100 mb-8 transition-colors">Add New Support</h2>
+            <h2 className="text-3xl font-serif font-bold text-[#354060] dark:text-slate-100 mb-8 transition-colors">{editingTask ? 'Edit Support' : 'Add New Support'}</h2>
             
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
                   <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1.5">Date</label>
-                  <input required type="date" name="date" value={formData.date} onChange={handleChange} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3.5 py-2.5 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all dark:text-gray-100 color-scheme-date" />
+                  <input required type="date" name="date" value={formData.date} onChange={handleChange} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3.5 py-2.5 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all dark:text-gray-100" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1.5">Province</label>

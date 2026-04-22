@@ -7,11 +7,13 @@ import { CalendarIcon, Maximize, Minimize, Moon, Sun } from 'lucide-react';
 import { format } from 'date-fns';
 import { useSupport } from '../context/SupportContext';
 import { useTheme } from '../context/ThemeContext';
+import { SupportTask } from '../types';
 import * as Papa from 'papaparse';
 import toast from 'react-hot-toast';
 
 export function MainDashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<SupportTask | null>(null);
   const { tasks, user, login, logout, startDate, endDate, setStartDate, setEndDate } = useSupport();
   const { isDark, toggleTheme } = useTheme();
 
@@ -122,11 +124,17 @@ export function MainDashboard() {
         <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 mt-6 items-start flex-1 lg:min-h-0 w-full">
           <div className="flex-1 w-full flex flex-col lg:h-full lg:min-h-0">
             <h2 className="text-xl md:text-2xl font-serif font-bold text-[#2e3752] dark:text-slate-100 shrink-0">Daily Tasks</h2>
-            <DailyTasks />
+            <DailyTasks onEdit={(task) => {
+               setEditingTask(task);
+               setIsModalOpen(true);
+            }} />
             
             <div className="mt-4 lg:mt-6 flex flex-col xl:flex-row justify-between items-start xl:items-end gap-3 lg:gap-4 shrink-0 w-full">
               <button 
-                onClick={() => setIsModalOpen(true)}
+                onClick={() => {
+                   setEditingTask(null);
+                   setIsModalOpen(true);
+                }}
                 className="bg-[#f5a524] hover:bg-[#e69719] text-gray-900 font-semibold px-4 lg:px-5 rounded-lg shadow-sm flex items-center justify-center gap-2 transition-colors border border-[#d68f1c] h-[42px] whitespace-nowrap w-full xl:w-auto"
               >
                 <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
@@ -137,19 +145,19 @@ export function MainDashboard() {
                   Export report
                 </button>
                 <div className="flex flex-wrap sm:flex-nowrap items-center gap-1 sm:gap-2 bg-white dark:bg-slate-800 rounded-lg border border-gray-300 dark:border-slate-600 px-2 sm:px-3 h-auto sm:h-[42px] w-full sm:w-auto overflow-hidden transition-colors">
-                   <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase mr-1 hidden sm:inline">Filter</span>
+                   <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase mr-1 hidden sm:inline">Viewing Dates</span>
                    <input 
                       type="date" 
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
-                      className="bg-transparent text-xs sm:text-sm text-gray-800 dark:text-gray-200 focus:outline-none h-8 sm:h-full w-full sm:w-auto flex-1 cursor-pointer min-w-[100px] color-scheme-date"
+                      className="bg-transparent text-xs sm:text-sm text-gray-800 dark:text-gray-200 focus:outline-none h-8 sm:h-full w-full sm:w-auto flex-1 cursor-pointer min-w-[100px]"
                    />
                    <span className="text-gray-400 dark:text-gray-500 text-xs sm:text-sm mx-1">to</span>
                    <input 
                       type="date" 
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
-                      className="bg-transparent text-xs sm:text-sm text-gray-800 dark:text-gray-200 focus:outline-none h-8 sm:h-full w-full sm:w-auto flex-1 cursor-pointer min-w-[100px] color-scheme-date"
+                      className="bg-transparent text-xs sm:text-sm text-gray-800 dark:text-gray-200 focus:outline-none h-8 sm:h-full w-full sm:w-auto flex-1 cursor-pointer min-w-[100px]"
                    />
                    {(startDate || endDate) && (
                       <button 
@@ -171,7 +179,7 @@ export function MainDashboard() {
         </div>
       )}
 
-      {isModalOpen && <SupportModal onClose={() => setIsModalOpen(false)} />}
+      {isModalOpen && <SupportModal onClose={() => { setIsModalOpen(false); setEditingTask(null); }} editingTask={editingTask} />}
     </main>
   );
 }
