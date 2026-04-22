@@ -1,0 +1,6 @@
+{
+  "name": "Situation Room: Daily Updates",
+  "description": "A web application to keep records of daily support, log issues, track their status, and generate reports.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

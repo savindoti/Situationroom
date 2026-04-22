@@ -1,0 +1,62 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ==== GLOBAL SAFETY NET ====
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ==== PRIMITIVES ====
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() { return request.auth != null && request.auth.token.email_verified == true; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+
+    // ==== VALIDATION BLUEPRINTS ====
+    function isValidSupportTask(data) {
+      return data.keys().hasAll([
+        'date', 'province', 'district', 'municipal', 'details', 
+        'organization', 'contactPerson', 'contactNumber', 'status', 
+        'createdAt', 'updatedAt', 'ownerId'
+      ]) 
+      && data.keys().size() == 12
+      && data.date is string && data.date.size() <= 50
+      && data.province is string && data.province.size() <= 100
+      && data.district is string && data.district.size() <= 100
+      && data.municipal is string && data.municipal.size() <= 100
+      && data.details is string && data.details.size() <= 5000
+      && data.organization is string && data.organization.size() <= 200
+      && data.contactPerson is string && data.contactPerson.size() <= 200
+      && data.contactNumber is string && data.contactNumber.size() <= 50
+      && data.status in ['Pending', 'Ongoing', 'Resolved']
+      && data.createdAt is int
+      && data.updatedAt is int
+      && data.ownerId == request.auth.uid;
+    }
+
+    // ==== PATHS ====
+    match /tasks/{taskId} {
+      allow get: if isSignedIn() && isValidId(taskId);
+      // All authenticated and verified users can list the shared tasks for the situation room.
+      allow list: if isSignedIn();
+
+      allow create: if isSignedIn()
+        && isValidId(taskId)
+        && isValidSupportTask(incoming())
+        && incoming().createdAt == request.time.toMillis()
+        && incoming().updatedAt == request.time.toMillis();
+
+      allow update: if isSignedIn()
+        && isValidId(taskId)
+        && isValidSupportTask(incoming())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+        && incoming().status in ['Pending', 'Ongoing', 'Resolved']
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time.toMillis();
+
+      // Deletions are restricted to the owner
+      allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
+    }
+  }
+}

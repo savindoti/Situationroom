@@ -1,0 +1,30 @@
+{
+  "entities": {
+    "SupportTask": {
+      "title": "Support Task",
+      "description": "A record of a daily support request",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string" },
+        "province": { "type": "string" },
+        "district": { "type": "string" },
+        "municipal": { "type": "string" },
+        "details": { "type": "string" },
+        "organization": { "type": "string" },
+        "contactPerson": { "type": "string" },
+        "contactNumber": { "type": "string" },
+        "status": { "type": "string", "enum": ["Pending", "Ongoing", "Resolved"] },
+        "createdAt": { "type": "number" },
+        "ownerId": { "type": "string", "description": "UID of the user who created the task" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["date", "province", "district", "municipal", "details", "organization", "contactPerson", "contactNumber", "status", "createdAt", "updatedAt", "ownerId"]
+    }
+  },
+  "firestore": {
+    "tasks/{taskId}": {
+      "schema": { "$ref": "#/entities/SupportTask" },
+      "description": "Collection storing the support tasks logged by users"
+    }
+  }
+}
