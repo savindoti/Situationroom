@@ -10,11 +10,16 @@ import { useTheme } from '../context/ThemeContext';
 import { SupportTask } from '../types';
 import * as Papa from 'papaparse';
 import toast from 'react-hot-toast';
+import { provinces, getDistrictsByProvince, getMunicipalsByDistrict } from '../data/locations';
 
 export function MainDashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<SupportTask | null>(null);
-  const { tasks, user, login, logout, startDate, endDate, setStartDate, setEndDate } = useSupport();
+  const { 
+    tasks, user, login, logout, 
+    startDate, endDate, setStartDate, setEndDate,
+    filterProvince, setFilterProvince, filterDistrict, setFilterDistrict, filterMunicipal, setFilterMunicipal
+  } = useSupport();
   const { isDark, toggleTheme } = useTheme();
 
   const handleExport = () => {
@@ -140,11 +145,57 @@ export function MainDashboard() {
                 <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
                 Add new support
               </button>
-              <div className="flex flex-col sm:flex-row gap-2 lg:gap-3 items-start sm:items-center w-full xl:w-auto">
-                <button onClick={handleExport} className="bg-blue-500 hover:bg-blue-600 text-white font-medium px-4 lg:px-5 rounded-lg shadow-sm text-sm transition-colors whitespace-nowrap h-[42px] w-full sm:w-auto flex items-center justify-center">
+              <div className="flex flex-col xl:flex-row gap-2 lg:gap-3 items-start xl:items-center w-full xl:w-auto overflow-hidden">
+                <div className="flex flex-wrap sm:flex-nowrap items-center gap-1 sm:gap-2 w-full xl:w-auto">
+                   <select 
+                     value={filterProvince} 
+                     onChange={(e) => { setFilterProvince(e.target.value); setFilterDistrict(''); setFilterMunicipal(''); }}
+                     className="bg-white dark:bg-slate-800 text-xs sm:text-sm text-gray-800 dark:text-gray-200 focus:outline-none border border-gray-300 dark:border-slate-600 rounded-lg px-2 sm:px-3 h-[42px] cursor-pointer flex-1 xl:w-auto truncate transition-colors"
+                   >
+                     <option value="">All Provinces</option>
+                     {provinces.map(p => <option key={p} value={p}>{p}</option>)}
+                   </select>
+
+                   <select 
+                     value={filterDistrict} 
+                     onChange={(e) => { setFilterDistrict(e.target.value); setFilterMunicipal(''); }}
+                     disabled={!filterProvince}
+                     className="bg-white dark:bg-slate-800 text-xs sm:text-sm text-gray-800 dark:text-gray-200 focus:outline-none border border-gray-300 dark:border-slate-600 rounded-lg px-2 sm:px-3 h-[42px] cursor-pointer flex-1 xl:w-auto truncate transition-colors disabled:opacity-50"
+                   >
+                     <option value="">All Districts</option>
+                     {getDistrictsByProvince(filterProvince).map(d => <option key={d} value={d}>{d}</option>)}
+                   </select>
+
+                   <div className="relative flex-1 xl:w-auto">
+                     <svg className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                     <input 
+                       type="text"
+                       placeholder="Search Municipality..."
+                       value={filterMunicipal} 
+                       onChange={(e) => setFilterMunicipal(e.target.value)}
+                       className="bg-white dark:bg-slate-800 text-xs sm:text-sm text-gray-800 dark:text-gray-200 focus:outline-none border border-gray-300 dark:border-slate-600 rounded-lg pl-8 pr-2 h-[42px] w-full transition-colors focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                     />
+                   </div>
+                </div>
+                
+                <button 
+                  onClick={() => {
+                     setFilterProvince('');
+                     setFilterDistrict('');
+                     setFilterMunicipal('');
+                     setStartDate('');
+                     setEndDate('');
+                  }}
+                  className="bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-200 font-medium px-4 rounded-lg shadow-sm text-sm transition-colors whitespace-nowrap h-[42px] flex items-center justify-center shrink-0"
+                  title="Reset all filters"
+                >
+                  Reset
+                </button>
+                
+                <button onClick={handleExport} className="bg-blue-500 hover:bg-blue-600 text-white font-medium px-4 lg:px-5 rounded-lg shadow-sm text-sm transition-colors whitespace-nowrap h-[42px] w-full sm:w-auto flex items-center justify-center shrink-0">
                   Export report
                 </button>
-                <div className="flex flex-wrap sm:flex-nowrap items-center gap-1 sm:gap-2 bg-white dark:bg-slate-800 rounded-lg border border-gray-300 dark:border-slate-600 px-2 sm:px-3 h-auto sm:h-[42px] w-full sm:w-auto overflow-hidden transition-colors">
+                <div className="flex flex-wrap sm:flex-nowrap items-center gap-1 sm:gap-2 bg-white dark:bg-slate-800 rounded-lg border border-gray-300 dark:border-slate-600 px-2 sm:px-3 h-auto sm:h-[42px] w-full sm:w-auto overflow-hidden transition-colors shrink-0">
                    <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase mr-1 hidden sm:inline">Viewing Dates</span>
                    <input 
                       type="date" 
@@ -159,14 +210,6 @@ export function MainDashboard() {
                       onChange={(e) => setEndDate(e.target.value)}
                       className="bg-transparent text-xs sm:text-sm text-gray-800 dark:text-gray-200 focus:outline-none h-8 sm:h-full w-full sm:w-auto flex-1 cursor-pointer min-w-[100px]"
                    />
-                   {(startDate || endDate) && (
-                      <button 
-                        onClick={() => { setStartDate(''); setEndDate(''); }}
-                        className="text-[10px] sm:text-xs text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 ml-1 sm:ml-2 px-2 py-1 flex items-center shrink-0 border border-red-100 dark:border-red-900/30 rounded bg-red-50 dark:bg-red-900/20 transition-colors h-6 sm:h-auto"
-                      >
-                        Clear
-                      </button>
-                   )}
                 </div>
               </div>
             </div>

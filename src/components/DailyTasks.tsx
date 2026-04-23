@@ -26,13 +26,13 @@ import { SupportTask } from '../types';
 
 export function DailyTasks({ onEdit }: { onEdit: (task: SupportTask) => void }) {
   const { tasks, updateTaskStatus, deleteTask } = useSupport();
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   
   const dailyTasks = tasks.sort((a, b) => b.createdAt - a.createdAt);
 
-  const handleDelete = (id: string, orgName: string) => {
-    if (window.confirm(`Are you sure you want to delete the support task for ${orgName}?`)) {
-      deleteTask(id);
-    }
+  const handleDelete = (id: string) => {
+    deleteTask(id);
+    setConfirmDeleteId(null);
   };
 
   return (
@@ -93,7 +93,14 @@ export function DailyTasks({ onEdit }: { onEdit: (task: SupportTask) => void }) 
                         <button onClick={() => updateTaskStatus(task.id, 'Resolved')} className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 font-bold text-xs bg-green-50 dark:bg-green-900/30 px-3 py-1.5 rounded transition-colors whitespace-nowrap">Mark Resolved</button>
                     )}
                     <button onClick={() => onEdit(task)} className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-bold text-xs bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded transition-colors whitespace-nowrap">Edit</button>
-                    <button onClick={() => handleDelete(task.id, task.organization)} className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 font-bold text-xs bg-red-50 dark:bg-red-900/30 px-3 py-1.5 rounded transition-colors whitespace-nowrap">Delete</button>
+                    {confirmDeleteId === task.id ? (
+                        <div className="flex items-center gap-1 bg-red-100 dark:bg-red-900/40 rounded px-1">
+                          <button onClick={() => handleDelete(task.id)} className="text-red-700 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 font-bold text-xs px-2 py-1.5 rounded transition-colors whitespace-nowrap">Confirm?</button>
+                          <button onClick={() => setConfirmDeleteId(null)} className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-xs px-2 py-1.5 rounded transition-colors">&times;</button>
+                        </div>
+                    ) : (
+                        <button onClick={() => setConfirmDeleteId(task.id)} className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 font-bold text-xs bg-red-50 dark:bg-red-900/30 px-3 py-1.5 rounded transition-colors whitespace-nowrap">Delete</button>
+                    )}
                   </td>
                 </tr>
              ))

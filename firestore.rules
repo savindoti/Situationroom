@@ -55,8 +55,8 @@ service cloud.firestore {
         && incoming().ownerId == existing().ownerId
         && incoming().createdAt == existing().createdAt;
 
-      // Deletions are restricted to the owner
-      allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
+      // Deletions are allowed for verified signed in users.
+      allow delete: if isSignedIn();
     }
   }
 }

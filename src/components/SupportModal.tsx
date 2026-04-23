@@ -78,7 +78,7 @@ export function SupportModal({ onClose, editingTask = null }: { onClose: () => v
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1.5">Province</label>
-                  <select required name="province" value={formData.province} onChange={handleChange} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3.5 py-2.5 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all dark:text-gray-100">
+                  <select name="province" value={formData.province} onChange={handleChange} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3.5 py-2.5 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all dark:text-gray-100">
                     <option value="">Select Province</option>
                     {provinces.map(p => (
                       <option key={p} value={p}>{p}</option>
@@ -90,7 +90,7 @@ export function SupportModal({ onClose, editingTask = null }: { onClose: () => v
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
                   <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1.5">District</label>
-                  <select required name="district" value={formData.district} onChange={handleChange} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3.5 py-2.5 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all disabled:bg-gray-50 disabled:dark:bg-slate-800/50 disabled:text-gray-400 dark:text-gray-100" disabled={!formData.province}>
+                  <select name="district" value={formData.district} onChange={handleChange} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3.5 py-2.5 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all disabled:bg-gray-50 disabled:dark:bg-slate-800/50 disabled:text-gray-400 dark:text-gray-100" disabled={!formData.province}>
                     <option value="">Select District</option>
                     {availableDistricts.map(d => (
                       <option key={d} value={d}>{d}</option>
@@ -99,7 +99,7 @@ export function SupportModal({ onClose, editingTask = null }: { onClose: () => v
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1.5">Municipal</label>
-                  <select required name="municipal" value={formData.municipal} onChange={handleChange} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3.5 py-2.5 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all disabled:bg-gray-50 disabled:dark:bg-slate-800/50 disabled:text-gray-400 dark:text-gray-100" disabled={!formData.district}>
+                  <select name="municipal" value={formData.municipal} onChange={handleChange} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3.5 py-2.5 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all disabled:bg-gray-50 disabled:dark:bg-slate-800/50 disabled:text-gray-400 dark:text-gray-100" disabled={!formData.district}>
                     <option value="">Select Municipal</option>
                     {availableMunicipals.map(m => (
                       <option key={m} value={m}>{m}</option>
@@ -109,8 +109,8 @@ export function SupportModal({ onClose, editingTask = null }: { onClose: () => v
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1.5">Details</label>
-                <textarea required name="details" value={formData.details} onChange={handleChange} rows={3} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3.5 py-2.5 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all placeholder:text-gray-400 dark:text-gray-100" placeholder="Describe the support required..."></textarea>
+                <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1.5">Details (Optional)</label>
+                <textarea name="details" value={formData.details} onChange={handleChange} rows={3} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3.5 py-2.5 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all placeholder:text-gray-400 dark:text-gray-100" placeholder="Describe the support required..."></textarea>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -119,15 +119,15 @@ export function SupportModal({ onClose, editingTask = null }: { onClose: () => v
                   <input required type="text" name="organization" value={formData.organization} onChange={handleChange} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3.5 py-2.5 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all dark:text-gray-100" placeholder="e.g. Red Cross" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1.5">Contact Person</label>
-                  <input required type="text" name="contactPerson" value={formData.contactPerson} onChange={handleChange} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3.5 py-2.5 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all dark:text-gray-100" placeholder="John Doe" />
+                  <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1.5">Contact Person (Optional)</label>
+                  <input type="text" name="contactPerson" value={formData.contactPerson} onChange={handleChange} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3.5 py-2.5 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all dark:text-gray-100" placeholder="John Doe" />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 border-b border-gray-200 dark:border-slate-700 pb-8 mb-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1.5">Contact Number</label>
-                  <input required type="tel" name="contactNumber" value={formData.contactNumber} onChange={handleChange} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3.5 py-2.5 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all dark:text-gray-100" placeholder="+977 98..." />
+                  <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1.5">Contact Number (Optional)</label>
+                  <input type="tel" name="contactNumber" value={formData.contactNumber} onChange={handleChange} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3.5 py-2.5 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all dark:text-gray-100" placeholder="+977 98..." />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1.5">Status</label>

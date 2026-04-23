@@ -13,6 +13,12 @@ interface SupportContextType {
   endDate: string;
   setStartDate: (date: string) => void;
   setEndDate: (date: string) => void;
+  filterProvince: string;
+  setFilterProvince: (val: string) => void;
+  filterDistrict: string;
+  setFilterDistrict: (val: string) => void;
+  filterMunicipal: string;
+  setFilterMunicipal: (val: string) => void;
   login: () => void;
   logout: () => void;
   addTask: (task: Omit<SupportTask, 'id' | 'createdAt' | 'updatedAt' | 'ownerId'>) => void;
@@ -29,6 +35,9 @@ export const SupportProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [filterProvince, setFilterProvince] = useState('');
+  const [filterDistrict, setFilterDistrict] = useState('');
+  const [filterMunicipal, setFilterMunicipal] = useState('');
 
   // Auth Listener
   useEffect(() => {
@@ -77,6 +86,9 @@ export const SupportProvider = ({ children }: { children: ReactNode }) => {
   const tasks = allTasks.filter(t => {
     if (startDate && t.date < startDate) return false;
     if (endDate && t.date > endDate) return false;
+    if (filterProvince && t.province !== filterProvince) return false;
+    if (filterDistrict && t.district !== filterDistrict) return false;
+    if (filterMunicipal && !t.municipal?.toLowerCase().includes(filterMunicipal.toLowerCase())) return false;
     return true;
   });
 
@@ -158,7 +170,11 @@ export const SupportProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <SupportContext.Provider value={{ tasks, user, loading, startDate, endDate, setStartDate, setEndDate, login, logout, addTask, updateTask, updateTaskStatus, deleteTask }}>
+    <SupportContext.Provider value={{
+      tasks, user, loading, startDate, endDate, setStartDate, setEndDate,
+      filterProvince, setFilterProvince, filterDistrict, setFilterDistrict, filterMunicipal, setFilterMunicipal,
+      login, logout, addTask, updateTask, updateTaskStatus, deleteTask
+    }}>
       {children}
     </SupportContext.Provider>
   );
