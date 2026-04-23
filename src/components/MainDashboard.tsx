@@ -3,7 +3,8 @@ import { TitleSection } from './TitleSection';
 import { DailyTasks } from './DailyTasks';
 import { Backlog } from './Backlog';
 import { SupportModal } from './SupportModal';
-import { CalendarIcon, Maximize, Minimize, Moon, Sun } from 'lucide-react';
+import { MapModal } from './MapModal';
+import { CalendarIcon, Maximize, Minimize, Moon, Sun, Map as MapIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { useSupport } from '../context/SupportContext';
 import { useTheme } from '../context/ThemeContext';
@@ -14,6 +15,7 @@ import { provinces, getDistrictsByProvince, getMunicipalsByDistrict } from '../d
 
 export function MainDashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isMapOpen, setIsMapOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<SupportTask | null>(null);
   const { 
     tasks, user, login, logout, 
@@ -82,7 +84,14 @@ export function MainDashboard() {
         <TitleSection />
         
         {user ? (
-          <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto justify-end">
+           <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto justify-end">
+             <button 
+                onClick={() => setIsMapOpen(true)} 
+                className="flex items-center justify-center p-2 text-gray-500 hover:text-green-600 dark:text-gray-400 dark:hover:text-green-500 hover:bg-green-50 dark:hover:bg-slate-800 rounded-lg transition-colors border border-transparent hover:border-green-100 dark:hover:border-slate-700"
+                title="View Map"
+             >
+                <MapIcon className="w-5 h-5" />
+             </button>
              <button 
                 onClick={toggleTheme} 
                 className="flex items-center justify-center p-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-800 rounded-lg transition-colors border border-transparent hover:border-blue-100 dark:hover:border-slate-700"
@@ -223,6 +232,7 @@ export function MainDashboard() {
       )}
 
       {isModalOpen && <SupportModal onClose={() => { setIsModalOpen(false); setEditingTask(null); }} editingTask={editingTask} />}
+      {isMapOpen && <MapModal onClose={() => setIsMapOpen(false)} tasks={tasks} />}
     </main>
   );
 }
