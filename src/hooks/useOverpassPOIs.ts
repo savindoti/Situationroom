@@ -28,9 +28,11 @@ export function useOverpassPOIs(bounds: [number, number, number, number] | null,
     if (types.includes('helipads')) queryItems += `node["aeroway"="helipad"](${south},${west},${north},${east});`;
     if (types.includes('airports')) queryItems += `node["aeroway"="aerodrome"](${south},${west},${north},${east});`;
     if (types.includes('schools')) queryItems += `node["amenity"="school"](${south},${west},${north},${east});`;
+    if (types.includes('hydropowers')) queryItems += `node["power"="plant"]["plant:source"="hydro"](${south},${west},${north},${east});node["power"="generator"]["generator:source"="hydro"](${south},${west},${north},${east});`;
 
     if (!queryItems) return;
 
+    // Use regular BBox query. We will filter out points outside Nepal in the Map component using Turf.js
     const query = `[out:json][timeout:25];(${queryItems});out body;`;
     const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
 
@@ -56,7 +58,7 @@ export function useOverpassPOIs(bounds: [number, number, number, number] | null,
               lat: e.lat,
               lon: e.lon,
               tags: e.tags || {},
-              type: e.tags.amenity || e.tags.aeroway || 'unknown'
+              type: (e.tags && (e.tags.amenity || e.tags.aeroway || e.tags.power)) || 'unknown'
             }));
           setPois(parsed);
         }

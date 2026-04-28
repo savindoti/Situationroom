@@ -20,7 +20,8 @@ export function MainDashboard() {
   const { 
     tasks, user, login, logout, 
     startDate, endDate, setStartDate, setEndDate,
-    filterProvince, setFilterProvince, filterDistrict, setFilterDistrict, filterMunicipal, setFilterMunicipal
+    filterProvince, setFilterProvince, filterDistrict, setFilterDistrict, filterMunicipal, setFilterMunicipal,
+    filterStatus, setFilterStatus
   } = useSupport();
   const { isDark, toggleTheme } = useTheme();
 
@@ -175,6 +176,17 @@ export function MainDashboard() {
                      {getDistrictsByProvince(filterProvince).map(d => <option key={d} value={d}>{d}</option>)}
                    </select>
 
+                   <select 
+                     value={filterStatus} 
+                     onChange={(e) => setFilterStatus(e.target.value)}
+                     className="bg-white dark:bg-slate-800 text-xs sm:text-sm text-gray-800 dark:text-gray-200 focus:outline-none border border-gray-300 dark:border-slate-600 rounded-lg px-2 sm:px-3 h-[42px] cursor-pointer flex-1 xl:w-auto truncate transition-colors"
+                   >
+                     <option value="All">All Status</option>
+                     <option value="Pending">Pending</option>
+                     <option value="Ongoing">Ongoing</option>
+                     <option value="Resolved">Resolved</option>
+                   </select>
+
                    <div className="relative flex-1 xl:w-auto">
                      <svg className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                      <input 
@@ -192,6 +204,7 @@ export function MainDashboard() {
                      setFilterProvince('');
                      setFilterDistrict('');
                      setFilterMunicipal('');
+                     setFilterStatus('All');
                      setStartDate('');
                      setEndDate('');
                   }}

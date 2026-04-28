@@ -1,10 +1,11 @@
-import { useState, FormEvent, useEffect } from 'react';
+import React, { useState, FormEvent, useEffect } from 'react';
 import { useSupport } from '../context/SupportContext';
 import { SupportStatus, SupportTask } from '../types';
 import { provinces, getDistrictsByProvince, getMunicipalsByDistrict } from '../data/locations';
 
 export function SupportModal({ onClose, editingTask = null }: { onClose: () => void; editingTask?: SupportTask | null }) {
   const { addTask, updateTask } = useSupport();
+  const [isNDRRMA, setIsNDRRMA] = useState(editingTask?.organization === 'NDRRMA');
   const [formData, setFormData] = useState({
     date: editingTask ? editingTask.date : new Date().toISOString().split('T')[0],
     province: editingTask ? editingTask.province : '',
@@ -71,51 +72,75 @@ export function SupportModal({ onClose, editingTask = null }: { onClose: () => v
             <h2 className="text-3xl font-serif font-bold text-[#354060] dark:text-slate-100 mb-8 transition-colors">{editingTask ? 'Edit Support' : 'Add New Support'}</h2>
             
             <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1.5">Date</label>
-                  <input required type="date" name="date" value={formData.date} onChange={handleChange} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3.5 py-2.5 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all dark:text-gray-100" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1.5">Province</label>
-                  <select name="province" value={formData.province} onChange={handleChange} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3.5 py-2.5 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all dark:text-gray-100">
-                    <option value="">Select Province</option>
-                    {provinces.map(p => (
-                      <option key={p} value={p}>{p}</option>
-                    ))}
-                  </select>
-                </div>
+              <div className="flex items-center gap-2 mb-4">
+                <input 
+                  type="checkbox" 
+                  id="ndrrmaCheck" 
+                  checked={isNDRRMA} 
+                  onChange={(e) => {
+                    setIsNDRRMA(e.target.checked);
+                    if (e.target.checked) {
+                      setFormData(prev => ({ ...prev, organization: 'NDRRMA' }));
+                    } else if (formData.organization === 'NDRRMA') {
+                      setFormData(prev => ({ ...prev, organization: '' }));
+                    }
+                  }} 
+                  className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                />
+                <label htmlFor="ndrrmaCheck" className="text-sm font-medium text-gray-700 dark:text-gray-200 cursor-pointer">
+                  Done for NDRRMA Works?
+                </label>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1.5">District</label>
-                  <select name="district" value={formData.district} onChange={handleChange} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3.5 py-2.5 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all disabled:bg-gray-50 disabled:dark:bg-slate-800/50 disabled:text-gray-400 dark:text-gray-100" disabled={!formData.province}>
-                    <option value="">Select District</option>
-                    {availableDistricts.map(d => (
-                      <option key={d} value={d}>{d}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1.5">Municipal</label>
-                  <select name="municipal" value={formData.municipal} onChange={handleChange} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3.5 py-2.5 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all disabled:bg-gray-50 disabled:dark:bg-slate-800/50 disabled:text-gray-400 dark:text-gray-100" disabled={!formData.district}>
-                    <option value="">Select Municipal</option>
-                    {availableMunicipals.map(m => (
-                      <option key={m} value={m}>{m}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+              {!isNDRRMA && (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1.5">Date <span className="text-red-500">*</span></label>
+                      <input required={!isNDRRMA} type="date" name="date" value={formData.date} onChange={handleChange} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3.5 py-2.5 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all dark:text-gray-100" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1.5">Province</label>
+                      <select name="province" value={formData.province} onChange={handleChange} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3.5 py-2.5 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all dark:text-gray-100">
+                        <option value="">Select Province</option>
+                        {provinces.map(p => (
+                          <option key={p} value={p}>{p}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1.5">District</label>
+                      <select name="district" value={formData.district} onChange={handleChange} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3.5 py-2.5 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all disabled:bg-gray-50 disabled:dark:bg-slate-800/50 disabled:text-gray-400 dark:text-gray-100" disabled={!formData.province}>
+                        <option value="">Select District</option>
+                        {availableDistricts.map(d => (
+                          <option key={d} value={d}>{d}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1.5">Municipal</label>
+                      <select name="municipal" value={formData.municipal} onChange={handleChange} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3.5 py-2.5 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all disabled:bg-gray-50 disabled:dark:bg-slate-800/50 disabled:text-gray-400 dark:text-gray-100" disabled={!formData.district}>
+                        <option value="">Select Municipal</option>
+                        {availableMunicipals.map(m => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </>
+              )}
 
               <div>
-                <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1.5">Details (Optional)</label>
-                <textarea name="details" value={formData.details} onChange={handleChange} rows={3} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3.5 py-2.5 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all placeholder:text-gray-400 dark:text-gray-100" placeholder="Describe the support required..."></textarea>
+                <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1.5">Details <span className="text-red-500">*</span></label>
+                <textarea required name="details" value={formData.details} onChange={handleChange} rows={3} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3.5 py-2.5 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all placeholder:text-gray-400 dark:text-gray-100" placeholder="Describe the support required..."></textarea>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1.5">Organization Name</label>
+                  <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1.5">Organization Name <span className="text-red-500">*</span></label>
                   <input required type="text" name="organization" value={formData.organization} onChange={handleChange} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3.5 py-2.5 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all dark:text-gray-100" placeholder="e.g. Red Cross" />
                 </div>
                 <div>
@@ -130,7 +155,7 @@ export function SupportModal({ onClose, editingTask = null }: { onClose: () => v
                   <input type="tel" name="contactNumber" value={formData.contactNumber} onChange={handleChange} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3.5 py-2.5 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all dark:text-gray-100" placeholder="+977 98..." />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1.5">Status</label>
+                  <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1.5">Status <span className="text-red-500">*</span></label>
                   <select required name="status" value={formData.status} onChange={handleChange} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3.5 py-2.5 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all dark:text-gray-100">
                     <option value="Pending">Pending</option>
                     <option value="Ongoing">Ongoing</option>

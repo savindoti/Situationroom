@@ -25,10 +25,12 @@ function LiveTimer({ startTime, stopTime }: { startTime: number; stopTime?: numb
 import { SupportTask } from '../types';
 
 export function DailyTasks({ onEdit }: { onEdit: (task: SupportTask) => void }) {
-  const { tasks, updateTaskStatus, deleteTask } = useSupport();
+  const { tasks, updateTaskStatus, deleteTask, filterStatus, user, username } = useSupport();
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   
-  const dailyTasks = tasks.sort((a, b) => b.createdAt - a.createdAt);
+  const dailyTasks = tasks
+    .filter(t => filterStatus === 'All' || t.status === filterStatus)
+    .sort((a, b) => b.createdAt - a.createdAt);
 
   const handleDelete = (id: string) => {
     deleteTask(id);
@@ -44,10 +46,10 @@ export function DailyTasks({ onEdit }: { onEdit: (task: SupportTask) => void }) 
             <th className="py-2.5 px-4 font-semibold">Details</th>
             <th className="py-2.5 px-4 font-semibold">Province</th>
             <th className="py-2.5 px-4 font-semibold">District</th>
-            <th className="py-2.5 px-4 font-semibold">Municipal</th>
             <th className="py-2.5 px-4 font-semibold">Organization</th>
             <th className="py-2.5 px-4 font-semibold">Status</th>
             <th className="py-2.5 px-4 font-semibold">Timer</th>
+            <th className="py-2.5 px-4 font-semibold">Remarks (Submitter)</th>
             <th className="py-2.5 px-4 font-semibold">Actions</th>
           </tr>
         </thead>
@@ -68,7 +70,6 @@ export function DailyTasks({ onEdit }: { onEdit: (task: SupportTask) => void }) 
                   <td className="py-2 px-4 max-w-[200px] truncate dark:text-gray-200" title={task.details}>{task.details}</td>
                   <td className="py-2 px-4 dark:text-gray-300">{task.province}</td>
                   <td className="py-2 px-4 dark:text-gray-300">{task.district}</td>
-                  <td className="py-2 px-4 text-gray-600 dark:text-gray-400">{task.municipal}</td>
                   <td className="py-2 px-4 font-medium text-gray-800 dark:text-gray-100">{task.organization}</td>
                   <td className="py-2 px-4">
                     <span className={`px-2 py-1 rounded text-xs font-semibold ${
@@ -84,6 +85,9 @@ export function DailyTasks({ onEdit }: { onEdit: (task: SupportTask) => void }) 
                         startTime={task.createdAt} 
                         stopTime={task.status === 'Resolved' ? task.updatedAt : undefined} 
                      />
+                  </td>
+                  <td className="py-2 px-4 text-xs text-gray-500 font-mono truncate max-w-[150px]" title={`Added by: ${task.ownerName || task.ownerEmail || (user?.uid === task.ownerId ? username || user?.email : task.ownerId)}`}>
+                    {task.ownerName || task.ownerEmail || (user?.uid === task.ownerId ? username || user?.email : task.ownerId)}
                   </td>
                   <td className="py-2 px-4 flex gap-1.5 flex-wrap">
                     {task.status === 'Pending' && (

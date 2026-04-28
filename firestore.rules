@@ -19,7 +19,11 @@ service cloud.firestore {
         'organization', 'contactPerson', 'contactNumber', 'status', 
         'createdAt', 'updatedAt', 'ownerId'
       ]) 
-      && data.keys().size() == 12
+      && data.keys().hasOnly([
+        'date', 'province', 'district', 'municipal', 'details', 
+        'organization', 'contactPerson', 'contactNumber', 'status', 
+        'createdAt', 'updatedAt', 'ownerId', 'ownerEmail', 'ownerName'
+      ])
       && data.date is string && data.date.size() <= 50
       && data.province is string && data.province.size() <= 100
       && data.district is string && data.district.size() <= 100
@@ -31,10 +35,22 @@ service cloud.firestore {
       && data.status in ['Pending', 'Ongoing', 'Resolved']
       && data.createdAt is int
       && data.updatedAt is int
-      && data.ownerId == request.auth.uid;
+      && data.ownerId == request.auth.uid
+      && (data.get('ownerEmail', '') is string)
+      && (data.get('ownerName', '') is string);
+    }
+
+    function isValidUser(data) {
+       return data.keys().hasAll(['username']) && data.keys().size() == 1
+       && data.username is string && data.username.size() <= 100;
     }
 
     // ==== PATHS ====
+    match /users/{userId} {
+      allow get, list: if isSignedIn();
+      allow write: if isSignedIn() && isValidId(userId) && userId == request.auth.uid && isValidUser(incoming());
+    }
+
     match /tasks/{taskId} {
       allow get: if isSignedIn() && isValidId(taskId);
       // All authenticated and verified users can list the shared tasks for the situation room.
@@ -49,7 +65,7 @@ service cloud.firestore {
         && isValidSupportTask(incoming())
         && incoming().diff(existing()).affectedKeys().hasOnly([
             'date', 'province', 'district', 'municipal', 'details',
-            'organization', 'contactPerson', 'contactNumber', 'status', 'updatedAt'
+            'organization', 'contactPerson', 'contactNumber', 'status', 'updatedAt', 'ownerEmail', 'ownerName'
         ])
         && incoming().status in ['Pending', 'Ongoing', 'Resolved']
         && incoming().ownerId == existing().ownerId

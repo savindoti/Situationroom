@@ -2,12 +2,14 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { SupportTask, SupportStatus } from '../types';
 import toast from 'react-hot-toast';
 import { db, auth } from '../firebase';
-import { collection, onSnapshot, query, setDoc, doc, updateDoc, deleteDoc, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, setDoc, doc, updateDoc, deleteDoc, orderBy, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut, User } from 'firebase/auth';
 
 interface SupportContextType {
   tasks: SupportTask[];
   user: User | null;
+  username: string | null;
+  setUsername: (name: string | null) => void;
   loading: boolean;
   startDate: string;
   endDate: string;
@@ -19,10 +21,12 @@ interface SupportContextType {
   setFilterDistrict: (val: string) => void;
   filterMunicipal: string;
   setFilterMunicipal: (val: string) => void;
+  filterStatus: string;
+  setFilterStatus: (val: string) => void;
   login: () => void;
   logout: () => void;
-  addTask: (task: Omit<SupportTask, 'id' | 'createdAt' | 'updatedAt' | 'ownerId'>) => void;
-  updateTask: (id: string, updates: Partial<Omit<SupportTask, 'id' | 'createdAt' | 'ownerId'>>) => void;
+  addTask: (task: Omit<SupportTask, 'id' | 'createdAt' | 'updatedAt' | 'ownerId' | 'ownerEmail'>) => void;
+  updateTask: (id: string, updates: Partial<Omit<SupportTask, 'id' | 'createdAt' | 'ownerId' | 'ownerEmail'>>) => void;
   updateTaskStatus: (id: string, status: SupportStatus) => void;
   deleteTask: (id: string) => void;
 }
@@ -32,17 +36,33 @@ const SupportContext = createContext<SupportContextType | undefined>(undefined);
 export const SupportProvider = ({ children }: { children: ReactNode }) => {
   const [allTasks, setAllTasks] = useState<SupportTask[]>([]);
   const [user, setUser] = useState<User | null>(null);
+  const [username, setUsername] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [filterProvince, setFilterProvince] = useState('');
   const [filterDistrict, setFilterDistrict] = useState('');
   const [filterMunicipal, setFilterMunicipal] = useState('');
+  const [filterStatus, setFilterStatus] = useState('All');
 
   // Auth Listener
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
+    const unsubscribe = onAuthStateChanged(auth, async (u) => {
       setUser(u);
+      if (u) {
+         try {
+             const userDoc = await getDoc(doc(db, 'users', u.uid));
+             if (userDoc.exists()) {
+                 setUsername(userDoc.data().username);
+             } else {
+                 setUsername(null);
+             }
+         } catch (e) {
+             console.error("Error fetching username:", e);
+         }
+      } else {
+         setUsername(null);
+      }
       setLoading(false);
     });
     return () => unsubscribe();
@@ -113,7 +133,7 @@ export const SupportProvider = ({ children }: { children: ReactNode }) => {
     return () => clearInterval(interval);
   }, [tasks]);
 
-  const addTask = async (taskData: Omit<SupportTask, 'id' | 'createdAt' | 'updatedAt' | 'ownerId'>) => {
+  const addTask = async (taskData: Omit<SupportTask, 'id' | 'createdAt' | 'updatedAt' | 'ownerId' | 'ownerEmail'>) => {
     if (!user) return toast.error('You must be logged in to add tasks.');
     
     const newRef = doc(collection(db, 'tasks'));
@@ -123,6 +143,8 @@ export const SupportProvider = ({ children }: { children: ReactNode }) => {
       createdAt: now,
       updatedAt: now,
       ownerId: user.uid,
+      ownerEmail: username || user.email || 'Unknown',
+      ownerName: username || '',
     };
 
     try {
@@ -171,8 +193,9 @@ export const SupportProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <SupportContext.Provider value={{
-      tasks, user, loading, startDate, endDate, setStartDate, setEndDate,
+      tasks, user, username, setUsername, loading, startDate, endDate, setStartDate, setEndDate,
       filterProvince, setFilterProvince, filterDistrict, setFilterDistrict, filterMunicipal, setFilterMunicipal,
+      filterStatus, setFilterStatus,
       login, logout, addTask, updateTask, updateTaskStatus, deleteTask
     }}>
       {children}

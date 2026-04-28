@@ -14,4 +14,5 @@ export interface SupportTask {
   createdAt: number;
   updatedAt: number;
   ownerId: string;
+  ownerEmail?: string;
 }
