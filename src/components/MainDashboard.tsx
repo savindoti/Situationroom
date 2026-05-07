@@ -4,25 +4,49 @@ import { DailyTasks } from './DailyTasks';
 import { Backlog } from './Backlog';
 import { SupportModal } from './SupportModal';
 import { MapModal } from './MapModal';
-import { CalendarIcon, Maximize, Minimize, Moon, Sun, Map as MapIcon } from 'lucide-react';
+import { RiskMapModal } from './RiskMapModal';
+import { UserManagementModal } from './UserManagementModal';
+import { CalendarIcon, Maximize, Minimize, Moon, Sun, Map as MapIcon, Users, Settings, LogOut, ChevronDown, ShieldCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { useSupport } from '../context/SupportContext';
 import { useTheme } from '../context/ThemeContext';
-import { SupportTask } from '../types';
+import { useAuth } from '../context/AuthContext';
+import { SupportTask, UserRole } from '../types';
 import * as Papa from 'papaparse';
+import * as xlsx from 'xlsx';
 import toast from 'react-hot-toast';
 import { provinces, getDistrictsByProvince, getMunicipalsByDistrict } from '../data/locations';
+
+const RoleBadge = ({ role }: { role: UserRole }) => {
+  const colors: Record<UserRole, string> = {
+    SUPERADMIN: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800',
+    ADMIN: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800',
+    LOCAL_USER: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+  };
+
+  return (
+    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border flex items-center gap-1 ${colors[role]}`}>
+      {role === 'SUPERADMIN' && <ShieldCheck className="w-2.5 h-2.5" />}
+      {(role || '').replace('_', ' ')}
+    </span>
+  );
+};
 
 export function MainDashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMapOpen, setIsMapOpen] = useState(false);
+  const [isRiskMapOpen, setIsRiskMapOpen] = useState(false);
+  const [isUserManagementOpen, setIsUserManagementOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<SupportTask | null>(null);
+  
   const { 
-    tasks, user, login, logout, 
+    tasks,
     startDate, endDate, setStartDate, setEndDate,
     filterProvince, setFilterProvince, filterDistrict, setFilterDistrict, filterMunicipal, setFilterMunicipal,
     filterStatus, setFilterStatus
   } = useSupport();
+  
+  const { user, appUser, login, logout, isSuperAdmin, canWrite } = useAuth();
   const { isDark, toggleTheme } = useTheme();
 
   const handleExport = () => {
@@ -45,12 +69,17 @@ export function MainDashboard() {
       'Last Updated': new Date(task.updatedAt).toLocaleString()
     }));
 
-    const csv = Papa.unparse(csvData);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const worksheet = xlsx.utils.json_to_sheet(csvData);
+    const workbook = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(workbook, worksheet, "Support Tasks");
+    
+    const buffer = xlsx.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `support_export_${format(new Date(), 'yyyyMMdd_HHmm')}.csv`);
+    link.setAttribute('download', `support_export_${format(new Date(), 'yyyyMMdd_HHmm')}.xlsx`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -86,12 +115,30 @@ export function MainDashboard() {
         
         {user ? (
            <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto justify-end">
+             {isSuperAdmin && (
+                <button 
+                  onClick={() => setIsUserManagementOpen(true)}
+                  className="flex items-center justify-center gap-1.5 p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors border border-transparent hover:border-indigo-100 dark:hover:border-indigo-800"
+                  title="User Management"
+                >
+                  <Users className="w-5 h-5" />
+                  <span className="text-xs font-bold hidden md:inline">Users</span>
+                </button>
+             )}
              <button 
                 onClick={() => setIsMapOpen(true)} 
                 className="flex items-center justify-center p-2 text-gray-500 hover:text-green-600 dark:text-gray-400 dark:hover:text-green-500 hover:bg-green-50 dark:hover:bg-slate-800 rounded-lg transition-colors border border-transparent hover:border-green-100 dark:hover:border-slate-700"
                 title="View Map"
              >
                 <MapIcon className="w-5 h-5" />
+             </button>
+             <button 
+                onClick={() => setIsRiskMapOpen(true)} 
+                className="flex items-center justify-center gap-1 p-2 text-gray-500 hover:text-orange-600 dark:text-gray-400 dark:hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-slate-800 rounded-lg transition-colors border border-transparent hover:border-orange-100 dark:hover:border-slate-700"
+                title="Risk Map"
+             >
+                <MapIcon className="w-5 h-5" />
+                <span className="text-xs font-semibold hidden sm:inline">Risk Map</span>
              </button>
              <button 
                 onClick={toggleTheme} 
@@ -107,11 +154,18 @@ export function MainDashboard() {
              >
                 {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
              </button>
-             <div className="flex items-center gap-2 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-full border border-gray-200 dark:border-slate-600 shadow-sm shrink-0 transition-colors">
-                {user.photoURL && <img src={user.photoURL} alt="Profile" className="w-5 h-5 sm:w-6 sm:h-6 rounded-full" />}
-                <span className="text-[10px] sm:text-xs font-medium text-gray-700 dark:text-gray-200 max-w-[80px] sm:max-w-[120px] truncate">{user.displayName || user.email}</span>
+             
+             <div className="flex flex-col items-end">
+                <div className="flex items-center gap-2 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-full border border-gray-200 dark:border-slate-600 shadow-sm shrink-0 transition-colors">
+                   {user.photoURL && <img src={user.photoURL} alt="Profile" className="w-5 h-5 sm:w-6 sm:h-6 rounded-full" />}
+                   <span className="text-[10px] sm:text-xs font-medium text-gray-700 dark:text-gray-200 max-w-[80px] sm:max-w-[120px] truncate">{appUser?.username || user.displayName || user.email}</span>
+                   {appUser && <RoleBadge role={appUser.role} />}
+                </div>
+                <button onClick={logout} className="text-[9px] sm:text-[10px] font-bold text-gray-400 dark:text-gray-500 hover:text-red-500 uppercase flex items-center gap-1 mt-1 px-1 transition-colors">
+                  <LogOut className="w-2.5 h-2.5" />
+                  Sign out
+                </button>
              </div>
-             <button onClick={logout} className="text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors">Sign out</button>
           </div>
         ) : (
           <button onClick={login} className="bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 shadow-sm hover:bg-gray-50 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-200 font-medium py-2 px-4 rounded-lg text-sm transition-colors flex items-center gap-2 w-full sm:w-auto justify-center">
@@ -119,9 +173,9 @@ export function MainDashboard() {
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
               <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
               <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1c-4.3 0-8.01 2.53-9.82 6.22l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
             </svg>
-            Sign in
+            Sign in with Google
           </button>
         )}
       </div>
@@ -145,16 +199,18 @@ export function MainDashboard() {
             }} />
             
             <div className="mt-4 lg:mt-6 flex flex-col xl:flex-row justify-between items-start xl:items-end gap-3 lg:gap-4 shrink-0 w-full">
-              <button 
-                onClick={() => {
-                   setEditingTask(null);
-                   setIsModalOpen(true);
-                }}
-                className="bg-[#f5a524] hover:bg-[#e69719] text-gray-900 font-semibold px-4 lg:px-5 rounded-lg shadow-sm flex items-center justify-center gap-2 transition-colors border border-[#d68f1c] h-[42px] whitespace-nowrap w-full xl:w-auto"
-              >
-                <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                Add new support
-              </button>
+              {canWrite && (
+                <button 
+                  onClick={() => {
+                     setEditingTask(null);
+                     setIsModalOpen(true);
+                  }}
+                  className="bg-[#f5a524] hover:bg-[#e69719] text-gray-900 font-semibold px-4 lg:px-5 rounded-lg shadow-sm flex items-center justify-center gap-2 transition-colors border border-[#d68f1c] h-[42px] whitespace-nowrap w-full xl:w-auto"
+                >
+                  <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                  Add new support
+                </button>
+              )}
               <div className="flex flex-col xl:flex-row gap-2 lg:gap-3 items-start xl:items-center w-full xl:w-auto overflow-hidden">
                 <div className="flex flex-wrap sm:flex-nowrap items-center gap-1 sm:gap-2 w-full xl:w-auto">
                    <select 
@@ -165,7 +221,7 @@ export function MainDashboard() {
                      <option value="">All Provinces</option>
                      {provinces.map(p => <option key={p} value={p}>{p}</option>)}
                    </select>
-
+ 
                    <select 
                      value={filterDistrict} 
                      onChange={(e) => { setFilterDistrict(e.target.value); setFilterMunicipal(''); }}
@@ -175,7 +231,7 @@ export function MainDashboard() {
                      <option value="">All Districts</option>
                      {getDistrictsByProvince(filterProvince).map(d => <option key={d} value={d}>{d}</option>)}
                    </select>
-
+ 
                    <select 
                      value={filterStatus} 
                      onChange={(e) => setFilterStatus(e.target.value)}
@@ -186,7 +242,7 @@ export function MainDashboard() {
                      <option value="Ongoing">Ongoing</option>
                      <option value="Resolved">Resolved</option>
                    </select>
-
+ 
                    <div className="relative flex-1 xl:w-auto">
                      <svg className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                      <input 
@@ -243,9 +299,11 @@ export function MainDashboard() {
           </div>
         </div>
       )}
-
-      {isModalOpen && <SupportModal onClose={() => { setIsModalOpen(false); setEditingTask(null); }} editingTask={editingTask} />}
-      {isMapOpen && <MapModal onClose={() => setIsMapOpen(false)} tasks={tasks} />}
-    </main>
-  );
-}
+ 
+       {isModalOpen && <SupportModal onClose={() => { setIsModalOpen(false); setEditingTask(null); }} editingTask={editingTask} />}
+       {isMapOpen && <MapModal onClose={() => setIsMapOpen(false)} tasks={tasks} />}
+       {isRiskMapOpen && <RiskMapModal onClose={() => setIsRiskMapOpen(false)} />}
+       {isUserManagementOpen && <UserManagementModal onClose={() => setIsUserManagementOpen(false)} />}
+     </main>
+   );
+ }

@@ -21,8 +21,8 @@ export const geocodeLocation = async (municipal: string, district: string): Prom
      }
      
      if (geoJSONCache && geoJSONCache.features) {
-         const dNormalized = district.toLowerCase().replace(/\s/g, '');
-         const mNormalized = municipal.toLowerCase().replace(/municipality|rural|metropolitan|sub-metropolitan|\s/g, '');
+         const dNormalized = (district || '').toLowerCase().replace(/\s/g, '');
+         const mNormalized = (municipal || '').toLowerCase().replace(/municipality|rural|metropolitan|sub-metropolitan|\s/g, '');
          
          const match = geoJSONCache.features.find((f: any) => {
              const fDist = (f.properties.DISTRICT || '').toLowerCase().replace(/\s/g, '');

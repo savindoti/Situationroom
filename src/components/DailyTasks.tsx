@@ -1,4 +1,5 @@
 import { useSupport } from '../context/SupportContext';
+import { useAuth } from '../context/AuthContext';
 import { useEffect, useState } from 'react';
 
 function LiveTimer({ startTime, stopTime }: { startTime: number; stopTime?: number }) {
@@ -25,7 +26,8 @@ function LiveTimer({ startTime, stopTime }: { startTime: number; stopTime?: numb
 import { SupportTask } from '../types';
 
 export function DailyTasks({ onEdit }: { onEdit: (task: SupportTask) => void }) {
-  const { tasks, updateTaskStatus, deleteTask, filterStatus, user, username } = useSupport();
+  const { tasks, updateTaskStatus, deleteTask, filterStatus } = useSupport();
+  const { user, appUser, isSuperAdmin, isAdmin, canWrite } = useAuth();
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   
   const dailyTasks = tasks
@@ -35,6 +37,12 @@ export function DailyTasks({ onEdit }: { onEdit: (task: SupportTask) => void }) 
   const handleDelete = (id: string) => {
     deleteTask(id);
     setConfirmDeleteId(null);
+  };
+
+  const canManageTask = (task: SupportTask) => {
+    if (isSuperAdmin) return true;
+    if (isAdmin && task.ownerId === user?.uid) return true;
+    return false;
   };
 
   return (
@@ -49,7 +57,7 @@ export function DailyTasks({ onEdit }: { onEdit: (task: SupportTask) => void }) 
             <th className="py-2.5 px-4 font-semibold">Organization</th>
             <th className="py-2.5 px-4 font-semibold">Status</th>
             <th className="py-2.5 px-4 font-semibold">Timer</th>
-            <th className="py-2.5 px-4 font-semibold">Remarks (Submitter)</th>
+            <th className="py-2.5 px-4 font-semibold">Auditing</th>
             <th className="py-2.5 px-4 font-semibold">Actions</th>
           </tr>
         </thead>
@@ -86,24 +94,35 @@ export function DailyTasks({ onEdit }: { onEdit: (task: SupportTask) => void }) 
                         stopTime={task.status === 'Resolved' ? task.updatedAt : undefined} 
                      />
                   </td>
-                  <td className="py-2 px-4 text-xs text-gray-500 font-mono truncate max-w-[150px]" title={`Added by: ${task.ownerName || task.ownerEmail || (user?.uid === task.ownerId ? username || user?.email : task.ownerId)}`}>
-                    {task.ownerName || task.ownerEmail || (user?.uid === task.ownerId ? username || user?.email : task.ownerId)}
+                  <td className="py-2 px-4 text-[10px] text-gray-500 font-mono leading-tight">
+                    <div className="flex flex-col">
+                      <span className="truncate max-w-[120px]" title={task.uploadedByEmail}>By: {task.uploadedByEmail || task.ownerEmail}</span>
+                      {task.lastUpdatedByEmail && task.lastUpdatedByEmail !== (task.uploadedByEmail || task.ownerEmail) && (
+                        <span className="truncate max-w-[120px]" title={task.lastUpdatedByEmail}>Last: {task.lastUpdatedByEmail}</span>
+                      )}
+                    </div>
                   </td>
-                  <td className="py-2 px-4 flex gap-1.5 flex-wrap">
-                    {task.status === 'Pending' && (
-                        <button onClick={() => updateTaskStatus(task.id, 'Ongoing')} className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-bold text-xs bg-blue-50 dark:bg-blue-900/30 px-3 py-1.5 rounded transition-colors whitespace-nowrap">Start Task</button>
-                    )}
-                    {task.status === 'Ongoing' && (
-                        <button onClick={() => updateTaskStatus(task.id, 'Resolved')} className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 font-bold text-xs bg-green-50 dark:bg-green-900/30 px-3 py-1.5 rounded transition-colors whitespace-nowrap">Mark Resolved</button>
-                    )}
-                    <button onClick={() => onEdit(task)} className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-bold text-xs bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded transition-colors whitespace-nowrap">Edit</button>
-                    {confirmDeleteId === task.id ? (
-                        <div className="flex items-center gap-1 bg-red-100 dark:bg-red-900/40 rounded px-1">
-                          <button onClick={() => handleDelete(task.id)} className="text-red-700 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 font-bold text-xs px-2 py-1.5 rounded transition-colors whitespace-nowrap">Confirm?</button>
-                          <button onClick={() => setConfirmDeleteId(null)} className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-xs px-2 py-1.5 rounded transition-colors">&times;</button>
-                        </div>
+                  <td className="py-2 px-4 flex gap-1.5 flex-wrap items-center">
+                    {canManageTask(task) ? (
+                      <>
+                        {task.status === 'Pending' && (
+                            <button onClick={() => updateTaskStatus(task.id, 'Ongoing')} className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-bold text-xs bg-blue-50 dark:bg-blue-900/30 px-3 py-1.5 rounded transition-colors whitespace-nowrap">Start Task</button>
+                        )}
+                        {task.status === 'Ongoing' && (
+                            <button onClick={() => updateTaskStatus(task.id, 'Resolved')} className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 font-bold text-xs bg-green-50 dark:bg-green-900/30 px-3 py-1.5 rounded transition-colors whitespace-nowrap">Mark Resolved</button>
+                        )}
+                        <button onClick={() => onEdit(task)} className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-bold text-xs bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded transition-colors whitespace-nowrap">Edit</button>
+                        {confirmDeleteId === task.id ? (
+                            <div className="flex items-center gap-1 bg-red-100 dark:bg-red-900/40 rounded px-1">
+                              <button onClick={() => handleDelete(task.id)} className="text-red-700 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 font-bold text-xs px-2 py-1.5 rounded transition-colors whitespace-nowrap">Confirm?</button>
+                              <button onClick={() => setConfirmDeleteId(null)} className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-xs px-2 py-1.5 rounded transition-colors">&times;</button>
+                            </div>
+                        ) : (
+                            <button onClick={() => setConfirmDeleteId(task.id)} className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 font-bold text-xs bg-red-50 dark:bg-red-900/30 px-3 py-1.5 rounded transition-colors whitespace-nowrap">Delete</button>
+                        )}
+                      </>
                     ) : (
-                        <button onClick={() => setConfirmDeleteId(task.id)} className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 font-bold text-xs bg-red-50 dark:bg-red-900/30 px-3 py-1.5 rounded transition-colors whitespace-nowrap">Delete</button>
+                      <span className="text-[10px] text-gray-400 font-bold uppercase tracking-tight italic">Read Only</span>
                     )}
                   </td>
                 </tr>

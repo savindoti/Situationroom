@@ -13,24 +13,20 @@ service cloud.firestore {
     function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
     
     // RBAC Helpers
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    function getRole() {
+      return getUserData().role;
+    }
     function isSuperAdmin() {
-      return isSignedIn() && (
-        request.auth.token.email.lower() == 'shrestha.nibas@gmail.com' ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'SUPERADMIN')
-      );
+      return isSignedIn() && (getRole() == 'SUPERADMIN' || request.auth.token.email == 'shrestha.nibas@gmail.com');
     }
     function isAdmin() {
-      return isSignedIn() && (
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN'
-      );
+      return isSignedIn() && getRole() == 'ADMIN';
     }
     function isLocalUser() {
-      return isSignedIn() && (
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'LOCAL_USER'
-      );
+      return isSignedIn() && getRole() == 'LOCAL_USER';
     }
     function hasWritePermission() {
       return isSuperAdmin() || isAdmin();
@@ -38,22 +34,57 @@ service cloud.firestore {
 
     // ==== VALIDATION BLUEPRINTS ====
     function isValidSupportTask(data) {
-      return data.province is string && data.province.size() <= 128
+      return data.keys().hasAll([
+        'date', 'province', 'district', 'municipal', 'details', 
+        'organization', 'contactPerson', 'contactNumber', 'status', 
+        'createdAt', 'updatedAt', 'ownerId'
+      ]) 
+      && data.keys().hasOnly([
+        'date', 'province', 'district', 'municipal', 'details', 
+        'organization', 'contactPerson', 'contactNumber', 'status', 
+        'createdAt', 'updatedAt', 'ownerId', 'ownerEmail', 'ownerName',
+        'uploadedByEmail', 'lastUpdatedByEmail', 'lastUpdatedTimestamp'
+      ])
+      && data.date is string && data.date.size() <= 64
+      && data.province is string && data.province.size() <= 128
       && data.district is string && data.district.size() <= 128
       && data.municipal is string && data.municipal.size() <= 128
-      && (data.get('details', '') is string)
+      && data.details is string && data.details.size() <= 10000
+      && data.organization is string && data.organization.size() <= 256
+      && data.contactPerson is string && data.contactPerson.size() <= 256
+      && data.contactNumber is string && data.contactNumber.size() <= 32
       && data.status in ['Pending', 'Ongoing', 'Resolved']
-      && (resource == null ? data.ownerId == request.auth.uid : data.ownerId == existing().ownerId);
+      && data.createdAt is int
+      && data.updatedAt is int
+      && data.ownerId == request.auth.uid
+      && (data.get('uploadedByEmail', '') is string && data.get('uploadedByEmail', '').size() <= 256);
     }
 
     function isValidRiskArea(data) {
-      return data.province is string && data.province.size() <= 128
+      return data.keys().hasAll([
+        'province', 'district', 'municipal', 'wardNumber', 'disasterLocation',
+        'lat', 'lng', 'typeOfDisaster', 'riskType', 'exposure',
+        'previousDamageDetails', 'preparednessActions', 'remarks',
+        'uploadedAt', 'uploaderId'
+      ])
+      && data.keys().hasOnly([
+        'province', 'district', 'municipal', 'wardNumber', 'disasterLocation',
+        'lat', 'lng', 'typeOfDisaster', 'riskType', 'exposure',
+        'previousDamageDetails', 'preparednessActions', 'remarks',
+        'uploadedAt', 'uploaderId', 'uploadedByEmail', 'lastUpdatedByEmail', 'lastUpdatedTimestamp'
+      ])
+      && data.province is string && data.province.size() <= 128
       && data.district is string && data.district.size() <= 128
       && data.municipal is string && data.municipal.size() <= 128
-      && (data.get('riskType', 'Medium') in ['Low', 'Medium', 'High'])
-      && (data.get('lat', 0) is float || data.get('lat', 0) is int)
-      && (data.get('lng', 0) is float || data.get('lng', 0) is int)
-      && (resource == null ? data.uploaderId == request.auth.uid : data.uploaderId == existing().uploaderId);
+      && data.wardNumber is string && data.wardNumber.size() <= 32
+      && data.disasterLocation is string && data.disasterLocation.size() <= 1024
+      && (data.lat is number || data.lat is int || data.lat is float)
+      && (data.lng is number || data.lng is int || data.lng is float)
+      && data.typeOfDisaster is string && data.typeOfDisaster.size() <= 256
+      && data.riskType in ['Low', 'Medium', 'High']
+      && data.uploadedAt is int
+      && data.uploaderId == request.auth.uid
+      && (data.get('uploadedByEmail', '') is string && data.get('uploadedByEmail', '').size() <= 256);
     }
 
     function isValidUserUpdate(data) {

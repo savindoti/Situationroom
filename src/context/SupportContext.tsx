@@ -1,16 +1,15 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { SupportTask, SupportStatus } from '../types';
 import toast from 'react-hot-toast';
-import { db, auth } from '../firebase';
-import { collection, onSnapshot, query, setDoc, doc, updateDoc, deleteDoc, orderBy, getDoc } from 'firebase/firestore';
-import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut, User } from 'firebase/auth';
+import { db } from '../firebase';
+import { collection, onSnapshot, query, setDoc, doc, updateDoc, deleteDoc, orderBy } from 'firebase/firestore';
+import { useAuth } from './AuthContext';
+
+import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
 
 interface SupportContextType {
   tasks: SupportTask[];
-  user: User | null;
-  username: string | null;
-  setUsername: (name: string | null) => void;
-  loading: boolean;
+  loadingTasks: boolean;
   startDate: string;
   endDate: string;
   setStartDate: (date: string) => void;
@@ -23,8 +22,6 @@ interface SupportContextType {
   setFilterMunicipal: (val: string) => void;
   filterStatus: string;
   setFilterStatus: (val: string) => void;
-  login: () => void;
-  logout: () => void;
   addTask: (task: Omit<SupportTask, 'id' | 'createdAt' | 'updatedAt' | 'ownerId' | 'ownerEmail'>) => void;
   updateTask: (id: string, updates: Partial<Omit<SupportTask, 'id' | 'createdAt' | 'ownerId' | 'ownerEmail'>>) => void;
   updateTaskStatus: (id: string, status: SupportStatus) => void;
@@ -34,10 +31,9 @@ interface SupportContextType {
 const SupportContext = createContext<SupportContextType | undefined>(undefined);
 
 export const SupportProvider = ({ children }: { children: ReactNode }) => {
+  const { user, appUser } = useAuth();
   const [allTasks, setAllTasks] = useState<SupportTask[]>([]);
-  const [user, setUser] = useState<User | null>(null);
-  const [username, setUsername] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loadingTasks, setLoadingTasks] = useState(true);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [filterProvince, setFilterProvince] = useState('');
@@ -45,49 +41,15 @@ export const SupportProvider = ({ children }: { children: ReactNode }) => {
   const [filterMunicipal, setFilterMunicipal] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
 
-  // Auth Listener
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (u) => {
-      setUser(u);
-      if (u) {
-         try {
-             const userDoc = await getDoc(doc(db, 'users', u.uid));
-             if (userDoc.exists()) {
-                 setUsername(userDoc.data().username);
-             } else {
-                 setUsername(null);
-             }
-         } catch (e) {
-             console.error("Error fetching username:", e);
-         }
-      } else {
-         setUsername(null);
-      }
-      setLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  const login = async () => {
-    try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-    } catch (error: any) {
-      toast.error('Failed to login: ' + error.message);
-    }
-  };
-
-  const logout = async () => {
-    await signOut(auth);
-  };
-
   // Firestore Snapshot
   useEffect(() => {
     if (!user) {
       setAllTasks([]);
+      setLoadingTasks(false);
       return;
     }
 
+    setLoadingTasks(true);
     const q = query(collection(db, 'tasks'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const dbTasks = snapshot.docs.map(doc => ({
@@ -95,9 +57,11 @@ export const SupportProvider = ({ children }: { children: ReactNode }) => {
         ...doc.data()
       })) as SupportTask[];
       setAllTasks(dbTasks);
+      setLoadingTasks(false);
     }, (error) => {
       toast.error('Failed to load tasks.');
       console.error(error);
+      setLoadingTasks(false);
     });
 
     return () => unsubscribe();
@@ -109,6 +73,7 @@ export const SupportProvider = ({ children }: { children: ReactNode }) => {
     if (filterProvince && t.province !== filterProvince) return false;
     if (filterDistrict && t.district !== filterDistrict) return false;
     if (filterMunicipal && !t.municipal?.toLowerCase().includes(filterMunicipal.toLowerCase())) return false;
+    if (filterStatus !== 'All' && t.status !== filterStatus) return false;
     return true;
   });
 
@@ -131,10 +96,11 @@ export const SupportProvider = ({ children }: { children: ReactNode }) => {
       });
     }, 5000);
     return () => clearInterval(interval);
-  }, [tasks]);
+  }, [allTasks]);
 
   const addTask = async (taskData: Omit<SupportTask, 'id' | 'createdAt' | 'updatedAt' | 'ownerId' | 'ownerEmail'>) => {
     if (!user) return toast.error('You must be logged in to add tasks.');
+    if (appUser?.role === 'LOCAL_USER') return toast.error('Read-only access: Permissions denied.');
     
     const newRef = doc(collection(db, 'tasks'));
     const now = Date.now();
@@ -143,60 +109,97 @@ export const SupportProvider = ({ children }: { children: ReactNode }) => {
       createdAt: now,
       updatedAt: now,
       ownerId: user.uid,
-      ownerEmail: username || user.email || 'Unknown',
-      ownerName: username || '',
+      ownerEmail: appUser?.username || user.email || 'Unknown',
+      ownerName: appUser?.username || '',
+      uploadedByEmail: user.email,
+      lastUpdatedByEmail: user.email,
+      lastUpdatedTimestamp: now,
     };
 
     try {
       await setDoc(newRef, newTask);
       toast.success('Support task logged successfully.');
     } catch (e: any) {
-      toast.error('Error logging task: ' + e.message);
+      handleFirestoreError(e, OperationType.WRITE, 'tasks');
     }
   };
 
   const updateTask = async (id: string, updates: Partial<Omit<SupportTask, 'id' | 'createdAt' | 'ownerId'>>) => {
     if (!user) return;
+    if (appUser?.role === 'LOCAL_USER') return toast.error('Read-only access: Permissions denied.');
+    
+    // Ownership check for ADMIN
+    if (appUser?.role === 'ADMIN') {
+        const task = allTasks.find(t => t.id === id);
+        if (task && task.ownerId !== user.uid) {
+            return toast.error('You can only edit your own records.');
+        }
+    }
+
     try {
       await updateDoc(doc(db, 'tasks', id), {
         ...updates,
-        updatedAt: Date.now()
+        updatedAt: Date.now(),
+        lastUpdatedByEmail: user.email,
+        lastUpdatedTimestamp: Date.now()
       });
       toast.success('Task updated successfully.');
     } catch (e: any) {
-      toast.error('Error updating task: ' + e.message);
+      handleFirestoreError(e, OperationType.UPDATE, `tasks/${id}`);
     }
   };
 
   const updateTaskStatus = async (id: string, status: SupportStatus) => {
     if (!user) return;
+    if (appUser?.role === 'LOCAL_USER') return toast.error('Read-only access: Permissions denied.');
+
+    // Ownership check for ADMIN
+    if (appUser?.role === 'ADMIN') {
+        const task = allTasks.find(t => t.id === id);
+        if (task && task.ownerId !== user.uid) {
+            return toast.error('You can only edit your own records.');
+        }
+    }
+
     try {
       await updateDoc(doc(db, 'tasks', id), {
         status,
-        updatedAt: Date.now()
+        updatedAt: Date.now(),
+        lastUpdatedByEmail: user.email,
+        lastUpdatedTimestamp: Date.now()
       });
       toast.success(`Task marked as ${status}.`);
     } catch (e: any) {
-      toast.error('Error updating task: ' + e.message);
+      handleFirestoreError(e, OperationType.UPDATE, `tasks/${id}`);
     }
   };
 
   const deleteTask = async (id: string) => {
     if (!user) return;
+    if (appUser?.role === 'LOCAL_USER') return toast.error('Read-only access: Permissions denied.');
+
+    // Ownership check for ADMIN
+    if (appUser?.role === 'ADMIN') {
+        const task = allTasks.find(t => t.id === id);
+        if (task && task.ownerId !== user.uid) {
+            return toast.error('You can only delete your own records.');
+        }
+    }
+
     try {
       await deleteDoc(doc(db, 'tasks', id));
       toast.success('Task removed.');
     } catch (e: any) {
-       toast.error('Delete failed: ' + e.message);
+       handleFirestoreError(e, OperationType.DELETE, `tasks/${id}`);
     }
   };
 
   return (
     <SupportContext.Provider value={{
-      tasks, user, username, setUsername, loading, startDate, endDate, setStartDate, setEndDate,
+      tasks, loadingTasks, startDate, endDate, setStartDate, setEndDate,
       filterProvince, setFilterProvince, filterDistrict, setFilterDistrict, filterMunicipal, setFilterMunicipal,
       filterStatus, setFilterStatus,
-      login, logout, addTask, updateTask, updateTaskStatus, deleteTask
+      addTask, updateTask, updateTaskStatus, deleteTask
     }}>
       {children}
     </SupportContext.Provider>

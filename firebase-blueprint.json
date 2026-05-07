@@ -15,16 +15,69 @@
         "contactNumber": { "type": "string" },
         "status": { "type": "string", "enum": ["Pending", "Ongoing", "Resolved"] },
         "createdAt": { "type": "number" },
-        "ownerId": { "type": "string", "description": "UID of the user who created the task" },
+        "ownerId": { "type": "string" },
+        "ownerEmail": { "type": "string" },
+        "uploadedByEmail": { "type": "string" },
+        "lastUpdatedByEmail": { "type": "string" },
+        "lastUpdatedTimestamp": { "type": "number" },
         "updatedAt": { "type": "number" }
       },
       "required": ["date", "province", "district", "municipal", "details", "organization", "contactPerson", "contactNumber", "status", "createdAt", "updatedAt", "ownerId"]
+    },
+    "RiskArea": {
+      "title": "Risk Area",
+      "description": "A record of a disaster risk area",
+      "type": "object",
+      "properties": {
+        "province": { "type": "string" },
+        "district": { "type": "string" },
+        "municipal": { "type": "string" },
+        "wardNumber": { "type": "string" },
+        "disasterLocation": { "type": "string" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "typeOfDisaster": { "type": "string" },
+        "riskType": { "type": "string", "enum": ["Low", "Medium", "High"] },
+        "exposure": { "type": "string" },
+        "previousDamageDetails": { "type": "string" },
+        "preparednessActions": { "type": "string" },
+        "remarks": { "type": "string" },
+        "uploadedAt": { "type": "number" },
+        "uploaderId": { "type": "string" },
+        "uploadedByEmail": { "type": "string" },
+        "lastUpdatedByEmail": { "type": "string" },
+        "lastUpdatedTimestamp": { "type": "number" }
+      },
+      "required": ["province", "district", "municipal", "wardNumber", "lat", "lng", "typeOfDisaster", "riskType", "uploadedAt", "uploaderId"]
+    },
+    "AppUser": {
+      "title": "App User",
+      "description": "A user of the application with specific role permissions",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "username": { "type": "string" },
+        "role": { "type": "string", "enum": ["SUPERADMIN", "ADMIN", "LOCAL_USER"] },
+        "createdAt": { "type": "number" },
+        "lastLogin": { "type": "number" },
+        "isDisabled": { "type": "boolean" }
+      },
+      "required": ["uid", "email", "role", "createdAt", "lastLogin"]
     }
   },
   "firestore": {
     "tasks/{taskId}": {
       "schema": { "$ref": "#/entities/SupportTask" },
       "description": "Collection storing the support tasks logged by users"
+    },
+    "risk_areas/{areaId}": {
+      "schema": { "$ref": "#/entities/RiskArea" },
+      "description": "Collection storing the risk areas identified"
+    },
+    "users/{userId}": {
+      "schema": { "$ref": "#/entities/AppUser" },
+      "description": "Collection storing user profiles and roles"
     }
   }
 }

@@ -63,7 +63,7 @@ const PROVINCE_MAP: Record<string, string> = {
   '4': 'Gandaki',
   '5': 'Lumbini',
   '6': 'Karnali',
-  '7': 'Sudurpashchim'
+  '7': 'Sudurpaschim'
 };
 
 const getRegionName = (properties: any) => {
