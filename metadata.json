@@ -1,6 +1,6 @@
 {
   "name": "Situation Room: Daily Updates",
-  "description": "A web application to keep records of daily support, log issues, track their status, and generate reports.",
+  "description": "Situation Room app with a fully responsive Risk Map dashboard, real-time hazard tracking, and administrative data management.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

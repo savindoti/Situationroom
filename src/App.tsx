@@ -17,9 +17,9 @@ export default function App() {
       <AuthProvider>
         <SupportProvider>
           <UsernameModal />
-          <div className="fixed inset-0 bg-[#121212] flex items-start lg:items-center justify-center overflow-y-auto lg:overflow-hidden transition-colors duration-300">
+          <div className="min-h-screen bg-[#0B3C5D] flex flex-col transition-colors duration-300 overflow-x-hidden">
             <div 
-               className="bg-[#fdfbf6] dark:bg-slate-900 font-sans text-gray-800 dark:text-gray-100 flex flex-col w-full min-h-screen lg:min-h-0 lg:h-[100vh] lg:max-w-[calc(100vh*(16/9))] lg:max-h-[calc(100vw*(9/16))] relative shadow-none lg:shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-x-hidden lg:overflow-hidden transition-colors duration-300"
+               className="bg-[#F4F7FA] dark:bg-[#102A43] font-sans text-gray-800 dark:text-gray-100 flex flex-col w-full flex-1 max-w-[2000px] mx-auto relative shadow-none lg:shadow-2xl transition-colors duration-300"
             >
               <Header />
               <MainDashboard />

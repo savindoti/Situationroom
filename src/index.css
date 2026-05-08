@@ -1,15 +1,26 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "Playfair Display", ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-sans: "Inter", "Poppins", "Noto Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-poppins: "Poppins", sans-serif;
+  --font-noto: "Noto Sans", sans-serif;
+  
+  --color-primary: #0B3C5D;
+  --color-navy: #102A43;
+  --color-sky: #3B82F6;
+  --color-alert: #D64545;
+  --color-warning: #F59E0B;
+  --color-success: #16A34A;
+  --color-bipad-bg: #F4F7FA;
+  --color-bipad-border: #D9E2EC;
 }
 
 body {
   margin: 0;
+  @apply bg-bipad-bg text-gray-800;
 }
 
 .dark .leaflet-popup-content-wrapper,

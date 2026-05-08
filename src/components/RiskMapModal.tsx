@@ -6,7 +6,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import * as turf from '@turf/turf';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Layers, Maximize, Minimize, Map as MapIcon, ChevronDown, Upload, Download, Activity, List, Search, Trash, Database, Edit2, Check, Square, CheckSquare, ShieldAlert, AlertTriangle, RotateCcw, Target, Clock, Waves, CloudRain, Flame, Zap, CloudFog, ChevronUp } from 'lucide-react';
+import { X, Layers, Maximize, Minimize, Map as MapIcon, ChevronDown, Upload, Download, Activity, List, Search, Trash, Database, Edit2, Check, Square, CheckSquare, ShieldAlert, AlertTriangle, RotateCcw, Target, Clock, Waves, CloudRain, Flame, Zap, CloudFog, ChevronUp, Filter, BarChart2 } from 'lucide-react';
 import { db, auth } from '../firebase';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc, query, writeBatch } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
@@ -104,10 +104,16 @@ export function RiskMapModal({ onClose }: { onClose: () => void }) {
   const [mapStyle, setMapStyle] = useState<'clustered' | 'scattered'>('clustered');
   
   // Custom Map Layer State
-  const [activeMapLayer, setActiveMapLayer] = useState('light');
+  const [activeMapLayer, setActiveMapLayer] = useState('outline');
   const [showLiveTraffic, setShowLiveTraffic] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [layerDropdownOpen, setLayerDropdownOpen] = useState(false);
+  const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
+  const [screenType, setScreenType] = useState<'mobile' | 'tablet' | 'desktop'>('desktop');
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
+  const [isStatsSheetOpen, setIsStatsSheetOpen] = useState(false);
+  const [selectedRiskLevel, setSelectedRiskLevel] = useState<'Low' | 'Medium' | 'High' | null>(null);
+  const [selectedRiskAreaId, setSelectedRiskAreaId] = useState<string | null>(null);
   
   // Administrative Boundary state
   const [provincesData, setProvincesData] = useState<any>(null);
@@ -232,8 +238,14 @@ export function RiskMapModal({ onClose }: { onClose: () => void }) {
              return true;
          });
      }
+
+     // Apply Type of Disaster filter if any
+     if (selectedDisasterTypes.length > 0) {
+        filtered = filtered.filter(r => selectedDisasterTypes.includes(r.typeOfDisaster || 'Unknown'));
+     }
+
      return filtered;
-  }, [riskAreas, appliedFilters]);
+  }, [riskAreas, appliedFilters, selectedDisasterTypes]);
 
   const selectedFeature = useMemo(() => {
      if (!appliedFilters.region) return null;
@@ -353,15 +365,8 @@ export function RiskMapModal({ onClose }: { onClose: () => void }) {
 
 
   const riskAreasFiltered = useMemo(() => {
-     let filtered = spatiallyFilteredRiskAreas;
-     if (selectedDisasterTypes.length > 0) {
-        filtered = filtered.filter(r => selectedDisasterTypes.includes(r.typeOfDisaster || 'Unknown'));
-     }
-     
-     filtered = filtered.filter(r => selectedRiskTypes.includes(r.riskType || 'Medium'));
-     
-     return filtered;
-  }, [spatiallyFilteredRiskAreas, selectedDisasterTypes, selectedRiskTypes]);
+     return spatiallyFilteredRiskAreas.filter(r => selectedRiskTypes.includes(r.riskType || 'Medium'));
+  }, [spatiallyFilteredRiskAreas, selectedRiskTypes]);
 
   const typeOfDisasterCounts = useMemo(() => {
      const counts: Record<string, number> = {};
@@ -375,17 +380,17 @@ export function RiskMapModal({ onClose }: { onClose: () => void }) {
   }, [spatiallyFilteredRiskAreas]);
 
   const riskAreaCounts = useMemo(() => {
-     const low = riskAreasFiltered.filter(t => t.riskType === 'Low');
-     const medium = riskAreasFiltered.filter(t => t.riskType === 'Medium');
-     const high = riskAreasFiltered.filter(t => t.riskType === 'High');
+     const low = spatiallyFilteredRiskAreas.filter(t => t.riskType === 'Low');
+     const medium = spatiallyFilteredRiskAreas.filter(t => t.riskType === 'Medium');
+     const high = spatiallyFilteredRiskAreas.filter(t => t.riskType === 'High');
      
      return {
-         total: riskAreasFiltered.length,
+         total: spatiallyFilteredRiskAreas.length,
          low,
          medium,
          high
      };
-  }, [riskAreasFiltered]);
+  }, [spatiallyFilteredRiskAreas]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -520,6 +525,21 @@ export function RiskMapModal({ onClose }: { onClose: () => void }) {
 
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      if (width < 768) setScreenType('mobile');
+      else if (width < 1024) setScreenType('tablet');
+      else setScreenType('desktop');
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isMobile = screenType === 'mobile';
+  const isTablet = screenType === 'tablet';
 
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
@@ -895,26 +915,35 @@ export function RiskMapModal({ onClose }: { onClose: () => void }) {
 
   return (
     <>
-     <div className={`fixed inset-0 bg-black/60 z-[100] flex items-center justify-center ${isFullscreen ? 'p-0' : 'p-2 sm:p-6'} backdrop-blur-sm transition-all duration-300`}>
-      <div className={`bg-white dark:bg-slate-900 shadow-2xl w-full h-full max-h-screen flex flex-col overflow-hidden relative ${isFullscreen ? 'rounded-none' : 'rounded-2xl'}`}>
-        <div className="flex justify-between items-center px-4 md:px-6 py-4 border-b border-gray-200 dark:border-slate-800 shrink-0 relative z-[1000]">
-          <div>
-            <h2 className="text-xl md:text-2xl font-serif font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              Risk Map
-              <span className={`text-[10px] px-2 py-0.5 rounded-full border ${isSuperAdmin ? 'bg-purple-100 text-purple-700 border-purple-200' : isAdmin ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-gray-100 text-gray-700 border-gray-200'}`}>
-                {isSuperAdmin ? 'SUPERADMIN' : isAdmin ? 'ADMIN' : 'LOCAL USER'}
-              </span>
-            </h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Nepal Administrative Boundaries Visualizer</p>
+     <div className={`fixed inset-0 bg-black/60 z-[100] flex items-center justify-center ${isFullscreen || isMobile ? 'p-0' : 'p-2 sm:p-6'} backdrop-blur-sm transition-all duration-300`}>
+      <div className={`bg-white dark:bg-slate-900 shadow-2xl w-full h-full max-h-screen flex flex-col overflow-hidden relative ${isFullscreen || isMobile ? 'rounded-none' : 'rounded-2xl'}`}>
+        <div className="flex justify-between items-center px-3 md:px-6 py-3 md:py-4 border-b border-gray-200 dark:border-slate-800 shrink-0 relative z-[1000]">
+          <div className="flex items-center gap-2">
+            {!isMobile && (
+              <div>
+                <h2 className="text-lg md:text-2xl font-serif font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  Risk Map
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full border ${isSuperAdmin ? 'bg-purple-100 text-purple-700 border-purple-200' : isAdmin ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-gray-100 text-gray-700 border-gray-200'}`}>
+                    {isSuperAdmin ? 'SUPERADMIN' : isAdmin ? 'ADMIN' : 'LOCAL USER'}
+                  </span>
+                </h2>
+                <p className="hidden md:block text-xs text-gray-500 dark:text-gray-400">Nepal Administrative Boundaries Visualizer</p>
+              </div>
+            )}
+            {isMobile && (
+              <h2 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                Risk Map
+              </h2>
+            )}
           </div>
-          <div className="flex items-center gap-3">
-             <div className="relative hidden md:flex flex-col">
+          <div className="flex items-center gap-1.5 sm:gap-3">
+             <div className="relative flex flex-col">
                  <div className="relative flex items-center">
                     <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5" />
                     <input 
                         type="text"
-                        placeholder="Search Local Level..."
-                        className="pl-8 pr-12 py-1.5 text-xs bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg text-gray-800 dark:text-gray-200 focus:outline-none focus:border-blue-500 w-64 transition-colors"
+                        placeholder={isMobile ? "Search..." : "Search Local Level..."}
+                        className={`${isMobile ? 'w-32' : 'w-64'} pl-8 pr-1.5 sm:pr-12 py-1.5 text-xs bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg text-gray-800 dark:text-gray-200 focus:outline-none focus:border-blue-500 transition-all`}
                         value={tempSearch}
                         onChange={(e) => {
                             const val = e.target.value;
@@ -952,7 +981,7 @@ export function RiskMapModal({ onClose }: { onClose: () => void }) {
                             }
                             setShowSuggestions(false);
                         }}
-                        className="absolute right-2 px-1.5 py-0.5 rounded bg-blue-100 hover:bg-blue-200 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 transition-colors"
+                        className="absolute right-2 px-1.5 py-0.5 rounded bg-blue-100 hover:bg-blue-200 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 transition-colors hidden sm:block"
                     >
                         <Target className="w-3 h-3" />
                     </button>
@@ -1098,16 +1127,123 @@ export function RiskMapModal({ onClose }: { onClose: () => void }) {
           </div>
         </div>
         
-        <div className="flex-1 bg-gray-100 dark:bg-slate-800 relative">
+        <div className="flex-1 bg-gray-100 dark:bg-slate-800 relative flex overflow-hidden">
+            {/* Left Side Panel - Responsive */}
+            <AnimatePresence>
+              {isSidePanelOpen && (
+                <motion.div 
+                  initial={isMobile ? { y: '100%' } : { x: -320 }}
+                  animate={isMobile ? { y: 0 } : { x: 0 }}
+                  exit={isMobile ? { y: '100%' } : { x: -320 }}
+                  transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                  className={`${isMobile ? 'fixed inset-x-0 bottom-0 z-[600] h-[70vh] rounded-t-2xl border-t' : 'absolute left-0 top-0 bottom-0 w-[320px] border-r z-[500] shadow-2xl'} bg-white dark:bg-slate-900 border-gray-200 dark:border-slate-800 flex flex-col`}
+                >
+                  <div className={`p-4 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center bg-gray-50 dark:bg-slate-800/50 ${isMobile ? 'rounded-t-2xl' : ''}`}>
+                     <div>
+                       <h3 className="font-bold text-gray-900 dark:text-white text-lg">Risky Zones</h3>
+                       <p className="text-[10px] font-black uppercase tracking-widest text-[#0B3C5D] dark:text-blue-400 mt-0.5">
+                         {selectedRiskLevel ? `${selectedRiskLevel} Risk Areas` : 'Filtered areas'} • {(selectedRiskLevel ? riskAreaCounts[selectedRiskLevel.toLowerCase() as keyof typeof riskAreaCounts] : riskAreasFiltered).length} locations
+                       </p>
+                     </div>
+                     <button 
+                       onClick={() => setIsSidePanelOpen(false)}
+                       className="p-1.5 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                     >
+                       {isMobile ? <X className="w-6 h-6 text-gray-500" /> : <Minimize className="w-4 h-4 text-gray-500" />}
+                     </button>
+                  </div>
+                  
+                  <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar">
+                     {(selectedRiskLevel ? riskAreaCounts[selectedRiskLevel.toLowerCase() as keyof typeof riskAreaCounts] : riskAreasFiltered).length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-full text-center py-10 opacity-50">
+                           <ShieldAlert className="w-12 h-12 text-gray-300 mb-2" />
+                           <p className="text-xs font-bold text-gray-400 uppercase tracking-widest leading-relaxed">No risky zones found <br/> for this selection.</p>
+                        </div>
+                     ) : (
+                        (selectedRiskLevel ? riskAreaCounts[selectedRiskLevel.toLowerCase() as keyof typeof riskAreaCounts] : riskAreasFiltered).map((item, idx: number) => (
+                          <motion.button
+                             key={item.id}
+                             initial={{ opacity: 0, y: 5 }}
+                             animate={{ opacity: 1, y: 0 }}
+                             transition={{ delay: idx * 0.01 }}
+                             onClick={() => {
+                                setSelectedRiskAreaId(item.id);
+                                if (isMobile) setIsSidePanelOpen(false);
+                                if (mapRef.current) {
+                                   mapRef.current.setView([item.lat, item.lng], 14);
+                                }
+                             }}
+                             className={`w-full text-left p-3 rounded-xl border transition-all group overflow-hidden ${selectedRiskAreaId === item.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 shadow-md ring-1 ring-blue-500' : 'border-gray-100 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-500 bg-white dark:bg-slate-800/50 shadow-sm'}`}
+                          >
+                             <div className="flex justify-between items-start mb-2">
+                               <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-tighter ${item.riskType === 'Low' ? 'bg-green-100 text-green-700' : item.riskType === 'High' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
+                                 {item.riskType} Risk
+                               </span>
+                               <span className="text-[9px] font-bold text-gray-400 group-hover:text-blue-500 transition-colors">{item.district}</span>
+                             </div>
+                             <h4 className="text-[11px] font-bold text-gray-900 dark:text-white leading-tight mb-1">{item.municipal} • Ward {item.wardNumber}</h4>
+                             <div className="space-y-1">
+                               <div className="flex items-center gap-1.5 flex-wrap">
+                                 <div className="p-1 bg-red-50 dark:bg-red-900/20 rounded">
+                                   <ShieldAlert className="w-3 h-3 text-red-500" />
+                                 </div>
+                                 <span className="text-[10px] font-bold text-red-600 dark:text-red-400 uppercase tracking-widest">{item.typeOfDisaster}</span>
+                               </div>
+                               <p className="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-1 italic">{item.disasterLocation}</p>
+                             </div>
+                          </motion.button>
+                        ))
+                     )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Desktop Panel Edge Toggle Button */}
+            {!isMobile && (
+              <button 
+                onClick={() => setIsSidePanelOpen(!isSidePanelOpen)}
+                className={`absolute ${isSidePanelOpen ? 'left-[320px]' : 'left-0'} top-1/2 -translate-y-1/2 w-8 h-12 bg-white dark:bg-slate-900 border-y border-r border-gray-200 dark:border-slate-800 rounded-r-lg flex items-center justify-center shadow-md z-[501] group transition-all hover:bg-gray-50 dark:hover:bg-slate-800`}
+              >
+                 <motion.div animate={{ rotate: isSidePanelOpen ? 0 : 180 }}>
+                   <ChevronDown className="w-4 h-4 text-gray-400 group-hover:text-blue-500 -rotate-90" />
+                 </motion.div>
+              </button>
+            )}
+
            {viewMode === 'map' ? (
-              <>
-                 <MapContainer 
+              <div className="flex-1 relative">
+                {/* Mobile FABs */}
+                {isMobile && (
+                  <div className="absolute top-4 right-4 z-[450] flex flex-col gap-3">
+                    <button 
+                      onClick={() => setIsFilterSheetOpen(true)}
+                      className="w-10 h-10 bg-white dark:bg-slate-900 rounded-full shadow-lg flex items-center justify-center border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-gray-300"
+                    >
+                      <Filter className="w-5 h-5" />
+                    </button>
+                    <button 
+                      onClick={() => setIsSidePanelOpen(true)}
+                      className="w-10 h-10 bg-white dark:bg-slate-900 rounded-full shadow-lg flex items-center justify-center border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-gray-300"
+                    >
+                      <List className="w-5 h-5" />
+                    </button>
+                    <button 
+                      onClick={() => setIsStatsSheetOpen(true)}
+                      className="w-10 h-10 bg-blue-600 rounded-full shadow-lg flex items-center justify-center text-white"
+                    >
+                      <BarChart2 className="w-5 h-5" />
+                    </button>
+                  </div>
+                )}
+                <MapContainer 
              ref={mapRef}
              center={[28.3949, 84.1240]} 
              zoom={7} 
              style={{ height: '100%', width: '100%', background: '#f1f5f9' }}
              maxBounds={[[26, 79], [31, 89]]}
              minZoom={6}
+             maxZoom={18}
            >
              <BoundsTracker setBounds={setMapBounds} />
              
@@ -1288,13 +1424,22 @@ export function RiskMapModal({ onClose }: { onClose: () => void }) {
                    
                    return (
                      <Marker 
-                        key={item.id || idx}
+                        key={`${item.id || idx}-${selectedRiskAreaId === item.id}`}
                         position={[item.lat, item.lng]}
+                        eventHandlers={{
+                           click: () => setSelectedRiskAreaId(item.id),
+                           popupclose: () => setSelectedRiskAreaId(null),
+                           add: (e) => {
+                              if (selectedRiskAreaId === item.id) {
+                                 e.target.openPopup();
+                              }
+                           }
+                        }}
                         icon={new L.DivIcon({
-                            html: `<div style="background-color: ${fillColor}; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; font-weight: bold;"></div>`,
+                            html: `<div style="background-color: ${fillColor}; width: 22px; height: 22px; border-radius: 50%; border: 2.5px solid ${selectedRiskAreaId === item.id ? '#3b82f6' : '#fff'}; box-shadow: 0 1px 4px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; font-weight: bold; transform: ${selectedRiskAreaId === item.id ? 'scale(1.2)' : 'scale(1)'}; transition: all 0.2s; z-index: ${selectedRiskAreaId === item.id ? 1000 : 1};"></div>`,
                             className: 'scatter-dot-icon',
-                            iconSize: [20, 20],
-                            iconAnchor: [10, 10]
+                            iconSize: [22, 22],
+                            iconAnchor: [11, 11]
                         })}
                      >
                        <Popup className="rounded-lg">
@@ -1356,18 +1501,32 @@ export function RiskMapModal({ onClose }: { onClose: () => void }) {
              </MarkerClusterGroup>
            </MapContainer>
 
-            <div className="absolute top-4 right-4 z-[400] flex flex-col gap-3 w-[240px]">
-                {/* Advanced Filters Card */}
-                <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-gray-100 dark:border-slate-800 overflow-hidden flex flex-col">
-                  <div className="p-3 flex justify-between items-center bg-white dark:bg-slate-900 shrink-0">
-                    <h3 className="font-bold text-[#1e5eba] text-base">Filters</h3>
-                    <button 
-                      onClick={resetFilters}
-                      className="p-1.5 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors text-gray-400 hover:text-gray-600"
+            <div className={`absolute top-4 ${isMobile ? 'left-4 right-4 z-[450]' : 'right-4 z-[400] w-[240px]'} flex flex-col gap-3 transition-all`}>
+                {/* Advanced Filters Card - Collapsible on Mobile */}
+                <AnimatePresence>
+                  {(!isMobile || isFilterSheetOpen) && (
+                    <motion.div 
+                      initial={isMobile ? { y: '100%' } : { opacity: 0, y: -20 }}
+                      animate={isMobile ? { y: 0 } : { opacity: 1, y: 0 }}
+                      exit={isMobile ? { y: '100%' } : { opacity: 0, y: -20 }}
+                      className={`${isMobile ? 'fixed inset-x-0 bottom-0 z-[650] h-[80vh] rounded-t-3xl border-t' : 'bg-white/95 dark:bg-slate-900/95 backdrop-blur rounded-2xl shadow-xl border border-gray-100 dark:border-slate-800'} overflow-hidden flex flex-col bg-white dark:bg-slate-900`}
                     >
-                      <RotateCcw className="w-4 h-4" />
-                    </button>
-                  </div>
+                      <div className={`p-4 flex justify-between items-center bg-white dark:bg-slate-900 shrink-0 ${isMobile ? 'rounded-t-3xl border-b' : ''}`}>
+                        <h3 className="font-bold text-[#1e5eba] text-lg">Map Filters</h3>
+                        <div className="flex items-center gap-2">
+                          <button 
+                            onClick={resetFilters}
+                            className="p-1.5 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors text-gray-400"
+                          >
+                            <RotateCcw className="w-4 h-4" />
+                          </button>
+                          {isMobile && (
+                            <button onClick={() => setIsFilterSheetOpen(false)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors text-gray-500">
+                              <X className="w-6 h-6" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
 
                   {/* Tabs */}
                   <div className="flex border-b border-gray-100 dark:border-slate-800 px-3 gap-4 shrink-0 bg-white dark:bg-slate-900">
@@ -1533,78 +1692,133 @@ export function RiskMapModal({ onClose }: { onClose: () => void }) {
                       </button>
                     </div>
                   </div>
-                </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* Statistics moved to bottom left */}
-            <div className="absolute bottom-4 left-4 z-[400] flex flex-col gap-3">
-              <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur rounded-xl shadow-lg border border-gray-100 dark:border-slate-800 p-4 w-[280px]">
-                 <div className="text-[13px] font-bold text-gray-500 uppercase tracking-tight mb-2">RISK AREAS ({riskAreaCounts.total})</div>
-                 <div className="flex gap-4 items-baseline">
-                    <div className="flex items-baseline gap-1" onClick={() => setListPopup({ title: 'Low Risk Areas', items: riskAreaCounts.low, type: 'risk_area' })}>
-                       <span className="text-xl font-bold font-mono text-[#22c55e]">{riskAreaCounts.low.length}</span>
-                       <span className="text-sm font-bold text-[#22c55e]">Low</span>
-                    </div>
-                    <div className="flex items-baseline gap-1" onClick={() => setListPopup({ title: 'Medium Risk Areas', items: riskAreaCounts.medium, type: 'risk_area' })}>
-                       <span className="text-xl font-bold font-mono text-[#f97316]">{riskAreaCounts.medium.length}</span>
-                       <span className="text-sm font-bold text-[#f97316]">Medium</span>
-                    </div>
-                    <div className="flex items-baseline gap-1" onClick={() => setListPopup({ title: 'High Risk Areas', items: riskAreaCounts.high, type: 'risk_area' })}>
-                       <span className="text-xl font-bold font-mono text-[#ef4444]">{riskAreaCounts.high.length}</span>
-                       <span className="text-sm font-bold text-[#ef4444]">High</span>
-                    </div>
-                 </div>
-              </div>
+            {/* Statistics and Legend - Responsive */}
+            <div className={`${isMobile ? 'fixed bottom-20 left-4 right-4' : 'absolute bottom-4 left-4 w-[280px]'} z-[400] flex flex-col gap-3 transition-colors`}>
+              <AnimatePresence>
+                {(!isMobile || isStatsSheetOpen) && (
+                  <motion.div 
+                    initial={isMobile ? { y: '100%', opacity: 0 } : { x: -20, opacity: 0 }}
+                    animate={isMobile ? { y: 0, opacity: 1 } : { x: 0, opacity: 1 }}
+                    exit={isMobile ? { y: '100%', opacity: 0 } : { x: -20, opacity: 0 }}
+                    className={`${isMobile ? 'fixed inset-x-0 bottom-0 z-[700] h-[40vh] rounded-t-3xl border-t bg-white dark:bg-slate-900 p-6' : 'bg-white/95 dark:bg-slate-900/95 backdrop-blur rounded-xl shadow-lg border border-gray-100 dark:border-slate-800 p-4'}`}
+                  >
+                     {isMobile && (
+                       <div className="flex justify-between items-center mb-6">
+                         <h3 className="font-bold text-gray-900 dark:text-white text-lg">Risk Statistics</h3>
+                         <button onClick={() => setIsStatsSheetOpen(false)}><X className="w-6 h-6 text-gray-500" /></button>
+                       </div>
+                     )}
+                     <div 
+                       className="text-[13px] font-bold text-gray-500 uppercase tracking-tight mb-2 cursor-pointer hover:text-blue-500 transition-colors flex items-center gap-2"
+                       onClick={() => {
+                         setSelectedRiskLevel(null);
+                         setIsSidePanelOpen(true);
+                         setSelectedRiskTypes(['Low', 'Medium', 'High']);
+                         if (isMobile) setIsStatsSheetOpen(false);
+                       }}
+                     >
+                       RISK AREAS ({riskAreaCounts.total})
+                       <span className="text-[10px] lowercase font-normal bg-gray-100 dark:bg-slate-800 px-1.5 py-0.5 rounded italic">click for all</span>
+                     </div>
+                     <div className="flex gap-4 items-baseline">
+                        <div 
+                          className="flex items-baseline gap-1 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800/50 p-1 rounded transition-colors" 
+                          onClick={() => {
+                            setSelectedRiskLevel('Low');
+                            setIsSidePanelOpen(true);
+                            setSelectedRiskTypes(['Low']);
+                            if (isMobile) setIsStatsSheetOpen(false);
+                          }}
+                        >
+                           <span className="text-xl font-bold font-mono text-[#22c55e]">{riskAreaCounts.low.length}</span>
+                           <span className="text-sm font-bold text-[#22c55e]">Low</span>
+                        </div>
+                        <div 
+                          className="flex items-baseline gap-1 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800/50 p-1 rounded transition-colors" 
+                          onClick={() => {
+                            setSelectedRiskLevel('Medium');
+                            setIsSidePanelOpen(true);
+                            setSelectedRiskTypes(['Medium']);
+                            if (isMobile) setIsStatsSheetOpen(false);
+                          }}
+                        >
+                           <span className="text-xl font-bold font-mono text-[#f97316]">{riskAreaCounts.medium.length}</span>
+                           <span className="text-sm font-bold text-[#f97316]">Medium</span>
+                        </div>
+                        <div 
+                          className="flex items-baseline gap-1 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800/50 p-1 rounded transition-colors" 
+                          onClick={() => {
+                            setSelectedRiskLevel('High');
+                            setIsSidePanelOpen(true);
+                            setSelectedRiskTypes(['High']);
+                            if (isMobile) setIsStatsSheetOpen(false);
+                          }}
+                        >
+                           <span className="text-xl font-bold font-mono text-[#ef4444]">{riskAreaCounts.high.length}</span>
+                           <span className="text-sm font-bold text-[#ef4444]">High</span>
+                        </div>
+                     </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
-           {/* Map Legend */}
-           <div className="absolute bottom-4 right-4 z-[400] bg-white/90 dark:bg-slate-900/90 backdrop-blur rounded-xl shadow-lg border border-gray-200 dark:border-slate-700 p-3 transition-colors">
-              <span className="font-bold text-xs uppercase tracking-wide text-gray-700 dark:text-gray-200 mb-2 block border-b border-gray-100 dark:border-slate-800 pb-2 flex justify-between items-center">
-                 Risk Type
-                 {selectedRiskTypes.length < 3 && (
-                    <button onClick={() => setSelectedRiskTypes(['Low', 'Medium', 'High'])} className="text-[10px] text-blue-500 hover:underline normal-case">Reset</button>
-                 )}
-              </span>
-              <div className="flex flex-col gap-2">
-                 <div 
-                    className={`flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800 p-1 -m-1 rounded transition-colors ${!selectedRiskTypes.includes('Low') ? 'opacity-40 grayscale' : ''}`}
-                    onClick={() => setSelectedRiskTypes(prev => {
-                        if (prev.length === 3) return ['Low'];
-                        const next = prev.includes('Low') ? prev.filter(r => r !== 'Low') : [...prev, 'Low'];
-                        return next.length === 0 ? ['Low', 'Medium', 'High'] : next;
-                    })}
-                 >
-                    <div className="w-3 h-3 rounded-full bg-[#22c55e] border border-white dark:border-slate-800 shadow-sm"></div>
-                    <span className="text-xs text-gray-600 dark:text-gray-300">Low Risk</span>
-                 </div>
-                 <div 
-                    className={`flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800 p-1 -m-1 rounded transition-colors ${!selectedRiskTypes.includes('Medium') ? 'opacity-40 grayscale' : ''}`}
-                    onClick={() => setSelectedRiskTypes(prev => {
-                        if (prev.length === 3) return ['Medium'];
-                        const next = prev.includes('Medium') ? prev.filter(r => r !== 'Medium') : [...prev, 'Medium'];
-                        return next.length === 0 ? ['Low', 'Medium', 'High'] : next;
-                    })}
-                 >
-                    <div className="w-3 h-3 rounded-full bg-[#f97316] border border-white dark:border-slate-800 shadow-sm"></div>
-                    <span className="text-xs text-gray-600 dark:text-gray-300">Medium Risk</span>
-                 </div>
-                 <div 
-                    className={`flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800 p-1 -m-1 rounded transition-colors ${!selectedRiskTypes.includes('High') ? 'opacity-40 grayscale' : ''}`}
-                    onClick={() => setSelectedRiskTypes(prev => {
-                        if (prev.length === 3) return ['High'];
-                        const next = prev.includes('High') ? prev.filter(r => r !== 'High') : [...prev, 'High'];
-                        return next.length === 0 ? ['Low', 'Medium', 'High'] : next;
-                    })}
-                 >
-                    <div className="w-3 h-3 rounded-full bg-[#ef4444] border border-white dark:border-slate-800 shadow-sm"></div>
-                    <span className="text-xs text-gray-600 dark:text-gray-300">High Risk</span>
-                 </div>
-                 <div className="flex items-center gap-2 mt-1 pt-2 border-t border-gray-100 dark:border-slate-800">
-                    <div className="w-4 h-4 rounded-full bg-[#334155] border border-white dark:border-slate-800 shadow-sm flex items-center justify-center text-[8px] font-bold text-white">#</div>
-                    <span className="text-xs text-gray-600 dark:text-gray-300">Multiple Areas</span>
-                 </div>
-              </div>
-           </div>
+           {/* Map Legend - Hidden on mobile, accessible via Stats on mobile */}
+           {!isMobile && (
+             <div className="absolute bottom-4 right-4 z-[400] bg-white/90 dark:bg-slate-900/90 backdrop-blur rounded-xl shadow-lg border border-gray-200 dark:border-slate-700 p-3 transition-colors">
+                <span className="font-bold text-xs uppercase tracking-wide text-gray-700 dark:text-gray-200 mb-2 block border-b border-gray-100 dark:border-slate-800 pb-2 flex justify-between items-center">
+                   Risk Type
+                   {selectedRiskTypes.length < 3 && (
+                      <button onClick={() => setSelectedRiskTypes(['Low', 'Medium', 'High'])} className="text-[10px] text-blue-500 hover:underline normal-case">Reset</button>
+                   )}
+                </span>
+                <div className="flex flex-col gap-2">
+                   <div 
+                      className={`flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800 p-1 -m-1 rounded transition-colors ${!selectedRiskTypes.includes('Low') ? 'opacity-40 grayscale' : ''}`}
+                      onClick={() => setSelectedRiskTypes(prev => {
+                          if (prev.length === 3) return ['Low'];
+                          const next = prev.includes('Low') ? prev.filter(r => r !== 'Low') : [...prev, 'Low'];
+                          return next.length === 0 ? ['Low', 'Medium', 'High'] : next;
+                      })}
+                   >
+                      <div className="w-3 h-3 rounded-full bg-[#22c55e] border border-white dark:border-slate-800 shadow-sm"></div>
+                      <span className="text-xs text-gray-600 dark:text-gray-300">Low Risk</span>
+                   </div>
+                   <div 
+                      className={`flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800 p-1 -m-1 rounded transition-colors ${!selectedRiskTypes.includes('Medium') ? 'opacity-40 grayscale' : ''}`}
+                      onClick={() => setSelectedRiskTypes(prev => {
+                          if (prev.length === 3) return ['Medium'];
+                          const next = prev.includes('Medium') ? prev.filter(r => r !== 'Medium') : [...prev, 'Medium'];
+                          return next.length === 0 ? ['Low', 'Medium', 'High'] : next;
+                      })}
+                   >
+                      <div className="w-3 h-3 rounded-full bg-[#f97316] border border-white dark:border-slate-800 shadow-sm"></div>
+                      <span className="text-xs text-gray-600 dark:text-gray-300">Medium Risk</span>
+                   </div>
+                   <div 
+                      className={`flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800 p-1 -m-1 rounded transition-colors ${!selectedRiskTypes.includes('High') ? 'opacity-40 grayscale' : ''}`}
+                      onClick={() => setSelectedRiskTypes(prev => {
+                          if (prev.length === 3) return ['High'];
+                          const next = prev.includes('High') ? prev.filter(r => r !== 'High') : [...prev, 'High'];
+                          return next.length === 0 ? ['Low', 'Medium', 'High'] : next;
+                      })}
+                   >
+                      <div className="w-3 h-3 rounded-full bg-[#ef4444] border border-white dark:border-slate-800 shadow-sm"></div>
+                      <span className="text-xs text-gray-600 dark:text-gray-300">High Risk</span>
+                   </div>
+                   <div className="flex items-center gap-2 mt-1 pt-2 border-t border-gray-100 dark:border-slate-800">
+                      <div className="w-4 h-4 rounded-full bg-[#334155] border border-white dark:border-slate-800 shadow-sm flex items-center justify-center text-[8px] font-bold text-white">#</div>
+                      <span className="text-xs text-gray-600 dark:text-gray-300">Multiple Areas</span>
+                   </div>
+                </div>
+             </div>
+           )}
            
            {/* Data Sources Footer */}
            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-[400] bg-white/80 dark:bg-slate-900/80 backdrop-blur px-4 py-2 rounded-full text-[10px] text-gray-700 dark:text-gray-300 shadow-md font-medium text-center pointer-events-auto border border-gray-200 dark:border-slate-700 w-max max-w-[90vw]">
@@ -1670,7 +1884,7 @@ export function RiskMapModal({ onClose }: { onClose: () => void }) {
                  </div>
               </div>
            )}
-           </>
+           </div>
            ) : (
               <div className="absolute inset-0 bg-white dark:bg-slate-900 flex flex-col p-4 md:p-6 text-sm overflow-hidden text-gray-800 dark:text-gray-200">
                  <div className="flex justify-between items-center mb-4 shrink-0">
